@@ -62,19 +62,85 @@ export function spoken(area: Area, a: Assessment, station: Station | null, tides
 		.join(' ');
 }
 
-export function neighborMessage(area: Area, a: Assessment, station: Station | null, tides: Extreme[], forecast: Hour[], now: number): string {
-	const icon = ['🟢', '🟡', '🟠', '🔴'][a.risk];
-	return [
-		`${icon} *${WORD[a.risk].toUpperCase()}: ${area.name}* (${formatHour(now)})`,
-		sentence(area.hazard, a.risk),
-		'',
-		`• ${rainNow(station)}${station ? `, ${station.h24.toLocaleString('pt-BR')} mm em 24 h` : ''}`,
-		area.hazard === 'inundacao' ? `• ${tideWords(tides, now)}` : '',
-		`• ${peakWords(forecast, now)}`,
-		'',
-		'Defesa Civil de Olinda: 0800 081 0060',
-		`Acompanhe: ${location.origin}`
-	]
-		.filter((line, i, all) => line !== '' || all[i - 1] !== '')
-		.join('\n');
+function greeting(now: number): string {
+	const hour = Number(new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', hour12: false }).format(now));
+	if (hour >= 5 && hour < 12) return 'Bom dia';
+	if (hour >= 12 && hour < 18) return 'Boa tarde';
+	return 'Boa noite';
+}
+
+const mm = (value: number) => `${value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} mm`;
+
+function rainStory(hazard: Area['hazard'], station: Station | null): string {
+	if (!station) return '';
+	if (hazard === 'deslizamento' && station.h72 >= 1) return `Pelo pluviômetro aqui perto, já choveu ${mm(station.h72)} nos últimos 3 dias, e a terra está pesada.`;
+	if (station.h1 >= 5) return `Está chovendo forte agora: ${mm(station.h1)} só na última hora e ${mm(station.h24)} em 24 horas.`;
+	if (station.h24 >= 1) return `Pelo pluviômetro aqui perto, choveu ${mm(station.h24)} nas últimas 24 horas.`;
+	return 'Não choveu nas últimas horas.';
+}
+
+function forecastStory(forecast: Hour[], now: number): string {
+	const next = forecast.filter((h) => h.at >= now - HOUR && h.at < now + 12 * HOUR);
+	const peak = next.reduce<Hour | null>((best, h) => (!best || h.mm > best.mm ? h : best), null);
+	if (!peak || peak.mm < 1) return 'A previsão não mostra chuva forte pras próximas horas.';
+	const strength = peak.mm >= 8 ? 'chuva forte' : peak.mm >= 3 ? 'uma boa chuva' : 'chuva fraca';
+	return `A previsão é de ${strength} ${around(peak.at)}.`;
+}
+
+function around(instant: number): string {
+	const hour = formatHour(instant);
+	if (hour === '0h') return 'lá pela meia-noite';
+	if (hour === '12h') return 'lá pelo meio-dia';
+	if (/^1h/.test(hour)) return `lá pela ${hour}`;
+	return `lá pelas ${hour}`;
+}
+
+function tideStory(tides: Extreme[], now: number): string {
+	const high = nextHigh(tides, now);
+	if (!high || high.at > now + 12 * HOUR) return '';
+	if (high.at <= now + HOUR / 2) return 'A maré está cheia agora, e com maré cheia a água do canal custa a escoar.';
+	return `A maré enche às ${formatHour(high.at)}, e com maré cheia a água do canal custa a escoar.`;
+}
+
+export function neighborMessage(area: Area, a: Assessment, station: Station | null, tides: Extreme[], forecast: Hour[], now: number, shelter: string): string {
+	const hi = greeting(now);
+	const place = area.name;
+	const rain = rainStory(area.hazard, station);
+	const next = forecastStory(forecast, now);
+	const tide = area.hazard === 'inundacao' ? tideStory(tides, now) : '';
+	const flood = area.hazard === 'inundacao';
+
+	const body: Record<Risk, string[]> = {
+		0: [
+			`${hi}, vizinhos! 🌤️`,
+			`Passando pra dizer que aqui no ${place} está tudo tranquilo por enquanto. ${rain} ${next}`,
+			'Qualquer mudança eu aviso. Fiquem bem! 💙'
+		],
+		1: [
+			`${hi}, vizinhos! 🟡`,
+			`Só um aviso de cuidado aqui do ${place}. ${next} ${tide}`,
+			flood
+				? 'Nada de pânico, mas vale deixar documentos e remédios num saco plástico e ficar de olho no canal.'
+				: 'Nada de pânico, mas vale observar se aparece rachadura nas paredes ou no chão, ou água barrenta descendo da barreira.',
+			'Se alguém precisar de uma mão, é só chamar. 🙏'
+		],
+		2: [
+			'Vizinhos, atenção 🟠',
+			`${rain} ${tide || next}`,
+			flood ? '*O canal pode transbordar.* Vamos tirar do chão o que puder molhar.' : '*A barreira pode ceder.* Quem mora perto dela: se aparecer rachadura, estalo ou árvore entortando, saia de casa na hora.',
+			'E vamos dar uma olhada em quem mora sozinho, nos idosos e em quem tem criança pequena. Se precisar de ajuda pra levantar móvel, me chama. Juntos a gente se cuida. 🤝'
+		],
+		3: [
+			flood ? '🔴 Gente, é sério: *o canal pode transbordar a qualquer momento.*' : '🔴 Gente, é sério: *a barreira pode descer.*',
+			rain,
+			flood
+				? 'Se a água começar a subir, não esperem: desliguem a energia, peguem documentos e remédios e vão pra um lugar alto.'
+				: 'Quem mora perto da encosta, saia de casa agora e vá pra casa de um parente ou pra um abrigo.',
+			`O abrigo mais perto é a ${shelter}.`,
+			'Quem puder, ajude os vizinhos idosos e acamados a sair. Estou por aqui, qualquer coisa me liguem. ❤️',
+			'Defesa Civil: 0800 081 0060 · Bombeiros: 193'
+		]
+	};
+
+	return [...body[a.risk].map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean), '', `Mandei pelo Olho na Chuva, que junta a chuva medida aqui perto, a previsão e a maré: ${location.origin}`].join('\n\n').replace(/\n{3,}/g, '\n\n');
 }

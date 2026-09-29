@@ -4,7 +4,7 @@
 	import Icon from '$lib/Icon.svelte';
 	import { km } from '$lib/rain';
 	import { canSpeak, speak, stopSpeaking } from '$lib/speech';
-	import { formatAgo, formatHour } from '$lib/time';
+	import { formatAgo, formatHour, relativeDay } from '$lib/time';
 	import { neighborMessage, peakWords, period, rainNow, sentence, spoken, tideWords, WORD } from '$lib/words';
 	import Timeline from './Timeline.svelte';
 
@@ -14,6 +14,7 @@
 	const station = $derived(app.station);
 	const risk = $derived(a?.risk ?? 0);
 	const shelter = $derived(SHELTERS.map((s) => ({ ...s, km: km(area, s) })).sort((x, y) => x.km - y.km)[0]);
+	const upcoming = $derived(data ? data.tides.filter((t) => t.at >= app.now).slice(0, 4) : []);
 	const stale = $derived(data ? app.now - data.fetchedAt > 30 * 60000 : true);
 
 	const POSTER = ['bg-calm text-calm-ink', 'bg-watch text-watch-ink', 'bg-warn text-warn-ink', 'bg-danger text-danger-ink'];
@@ -33,7 +34,7 @@
 
 	function warnNeighbors() {
 		if (!a || !data) return;
-		const text = neighborMessage(area, a, station?.station ?? null, data.tides, data.forecast, app.now);
+		const text = neighborMessage(area, a, station?.station ?? null, data.tides, data.forecast, app.now, shelter?.name ?? 'a escola mais próxima');
 		open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
 	}
 
@@ -132,9 +133,20 @@
 			{#if area.hazard === 'inundacao'}
 				<div class="flex items-start gap-3 p-4">
 					<Icon name="wave" class="mt-0.5 h-7 w-7 shrink-0 text-sea" />
-					<div class="flex flex-col leading-snug">
-						<b class="text-lg first-letter:uppercase">{tideWords(data.tides, app.now)}</b>
-						<span class="text-[0.85rem] text-ink-2">Com maré cheia, a água do canal demora a escoar para o mar.</span>
+					<div class="flex min-w-0 flex-1 flex-col gap-2 leading-snug">
+						<div class="flex flex-col">
+							<b class="text-lg first-letter:uppercase">{tideWords(data.tides, app.now)}</b>
+							<span class="text-[0.85rem] text-ink-2">Com maré cheia, a água do canal demora a escoar para o mar.</span>
+						</div>
+						<ol class="-mr-2 flex gap-1.5 overflow-x-auto pb-1" aria-label="Próximas marés">
+							{#each upcoming as t (t.at)}
+								<li class={['flex shrink-0 flex-col items-center rounded-2xl px-3 py-1.5 leading-tight', t.high ? 'bg-sea text-white' : 'bg-sea-tint text-sea-deep']}>
+									<span class="text-[0.75rem] font-bold opacity-85">{t.high ? 'cheia' : 'vazia'} · {relativeDay(t.at, app.now)}</span>
+									<b class="tabular-nums">{formatHour(t.at)}</b>
+									<span class="text-[0.78rem] tabular-nums opacity-90">{t.height.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m</span>
+								</li>
+							{/each}
+						</ol>
 					</div>
 				</div>
 			{/if}

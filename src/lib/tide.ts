@@ -33,6 +33,12 @@ export function heightAt(extremes: Extreme[], at: number): number | null {
 	return a.height + ((b.height - a.height) * (1 - Math.cos(Math.PI * progress))) / 2;
 }
 
+export function trend(extremes: Extreme[], at: number): 'enchendo' | 'vazando' | null {
+	const next = extremes.find((e) => e.at > at);
+	if (!next) return null;
+	return next.high ? 'enchendo' : 'vazando';
+}
+
 export function nextHigh(extremes: Extreme[], now: number): Extreme | null {
 	return extremes.find((e) => e.high && e.at >= now - HOUR) ?? null;
 }
