@@ -1,0 +1,138 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/atkinson-hyperlegible-next';
+
+@theme {
+	--font-sans: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--color-bg: #f5f3ee;
+	--color-surface: #ffffff;
+	--color-ink: #111a1f;
+	--color-ink-2: #4a565d;
+	--color-line: #dad6cd;
+	--color-sea: #0b5c86;
+	--color-sea-deep: #073b57;
+	--color-sea-tint: #d6e9f3;
+	--color-rain: #3a6ea5;
+	--color-calm: #e3efe8;
+	--color-calm-ink: #0f3d2e;
+	--color-watch: #ffe066;
+	--color-watch-ink: #2e2600;
+	--color-warn: #ff8a3d;
+	--color-warn-ink: #2b1100;
+	--color-danger: #b3121b;
+	--color-danger-ink: #ffffff;
+	--color-whats: #128c4a;
+	--ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+	--ease-spring: cubic-bezier(0.34, 1.5, 0.5, 1);
+	--shadow-lift: 0 1px 2px rgb(17 26 31 / 0.06), 0 12px 28px -16px rgb(17 26 31 / 0.3);
+}
+
+html {
+	font-size: 118.75%;
+	-webkit-text-size-adjust: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--color-bg);
+	color: var(--color-ink);
+	font-family: var(--font-sans);
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+	-webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+	outline: 3px solid var(--color-sea);
+	outline-offset: 3px;
+	border-radius: 12px;
+}
+
+h1,
+h2,
+h3 {
+	text-wrap: balance;
+	letter-spacing: -0.02em;
+}
+
+@keyframes rise {
+	from {
+		transform: translateY(12px);
+		opacity: 0.001;
+	}
+	to {
+		transform: none;
+		opacity: 1;
+	}
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes toast-in {
+	from {
+		transform: translateY(24px) scale(0.96);
+		opacity: 0;
+	}
+	to {
+		transform: none;
+		opacity: 1;
+	}
+}
+
+@keyframes swell {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	50% {
+		transform: translateX(-12px);
+	}
+}
+
+@keyframes fall {
+	from {
+		transform: translateY(-6px);
+		opacity: 0.4;
+	}
+	to {
+		transform: none;
+		opacity: 1;
+	}
+}
+
+@keyframes pulse-ring {
+	0% {
+		transform: scale(0.9);
+		opacity: 0.7;
+	}
+	100% {
+		transform: scale(1.35);
+		opacity: 0;
+	}
+}
+
+.rise {
+	animation: rise 0.5s var(--ease-out-soft) both;
+	animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.press {
+	transition: transform 0.15s var(--ease-out-soft);
+}
+
+.press:active {
+	transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
