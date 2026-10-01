@@ -11,11 +11,13 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
 	},
 	"devDependencies": {
-		"@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+		"@fontsource-variable/archivo": "^5.3.0",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/vite-plugin-svelte": "^7.3.1",
 		"@tailwindcss/vite": "^4.3.3",
+		"@types/d3-shape": "^3.2.0",
+		"d3-shape": "^3.2.0",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.7.6",
 		"tailwindcss": "^4.3.3",

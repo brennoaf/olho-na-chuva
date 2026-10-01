@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { app } from '$lib/app.svelte';
+	import { worst } from '$lib/alerts';
 	import { SHELTERS } from '$lib/areas';
 	import Icon from '$lib/Icon.svelte';
 	import { km } from '$lib/rain';
 	import { canSpeak, speak, stopSpeaking } from '$lib/speech';
-	import { formatAgo, formatHour, relativeDay } from '$lib/time';
-	import { neighborMessage, peakWords, period, rainNow, sentence, spoken, tideWords, WORD } from '$lib/words';
+	import { formatAgo, formatHour } from '$lib/time';
+	import { headline, neighborMessage, rows, spoken, WORD } from '$lib/words';
 	import Timeline from './Timeline.svelte';
 
 	const area = $derived(app.area!);
@@ -13,11 +14,11 @@
 	const data = $derived(app.data);
 	const station = $derived(app.station);
 	const risk = $derived(a?.risk ?? 0);
-	const shelter = $derived(SHELTERS.map((s) => ({ ...s, km: km(area, s) })).sort((x, y) => x.km - y.km)[0]);
-	const upcoming = $derived(data ? data.tides.filter((t) => t.at >= app.now).slice(0, 4) : []);
+	const shelter = $derived(SHELTERS.map((s) => ({ ...s, km: km(area, s) })).sort((p, q) => p.km - q.km)[0]!);
 	const stale = $derived(data ? app.now - data.fetchedAt > 30 * 60000 : true);
-
-	const POSTER = ['bg-calm text-calm-ink', 'bg-watch text-watch-ink', 'bg-warn text-warn-ink', 'bg-danger text-danger-ink'];
+	const table = $derived(data ? rows(area, station, data.tides, data.forecast, worst(data.alerts), app.now, (t) => formatAgo(t, app.now)) : { list: [], source: '' });
+	const title = $derived(headline(area.hazard, risk));
+	const fit = (word: string, max: number) => `font-size: min(${max}rem, calc((min(100vw, 32rem) - 2.6rem) / ${(word.length * 0.68).toFixed(2)}))`;
 
 	let speaking = $state(false);
 
@@ -34,168 +35,120 @@
 
 	function warnNeighbors() {
 		if (!a || !data) return;
-		const text = neighborMessage(area, a, station?.station ?? null, data.tides, data.forecast, app.now, shelter?.name ?? 'a escola mais próxima');
+		const text = neighborMessage(area, a, station?.station ?? null, data.tides, data.forecast, app.now, shelter.name);
 		open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
 	}
 
-	const route = (lat: number, lon: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
+	const route = $derived(`https://www.google.com/maps/dir/?api=1&destination=${shelter.lat},${shelter.lon}&travelmode=walking`);
 </script>
 
 {#if !a || !data}
-	<div class="flex min-h-[80dvh] flex-col items-center justify-center gap-4 text-center" role="status">
-		<span class="h-12 w-12 animate-[spin_0.9s_linear_infinite] rounded-full border-4 border-sea-tint border-t-sea"></span>
-		<p class="text-lg font-bold">Olhando a chuva e a maré…</p>
+	<div class="flex min-h-dvh flex-col justify-center gap-4" role="status">
+		<span class="h-10 w-10 animate-[spin_0.9s_linear_infinite] rounded-full border-4 border-current border-t-transparent opacity-70"></span>
+		<p class="display text-[2.4rem]">olhando a chuva e a maré</p>
 	</div>
 {:else}
-	<div class="flex flex-col gap-5 pb-28">
-		<section class={['-mx-4 flex flex-col gap-5 rounded-b-[2.5rem] px-5 pt-[calc(1rem+env(safe-area-inset-top))] pb-6 transition-colors duration-500', POSTER[risk]]} aria-live="polite">
-			<div class="flex items-center justify-between gap-2">
-				<a class="press flex min-h-12 items-center gap-2 rounded-full bg-black/8 px-4 font-bold" href="#/lugar">
-					<Icon name="pin" class="h-5 w-5" />
-					{area.name}
-				</a>
-				<button class="press flex min-h-12 items-center gap-2 rounded-full bg-black/8 px-4 text-[0.9rem] font-bold" onclick={() => app.refresh(true)} aria-label="Atualizar agora">
-					<Icon name="refresh" class={`h-5 w-5 ${app.loading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
-					{app.loading ? 'Atualizando' : formatAgo(data.fetchedAt, app.now)}
-				</button>
-			</div>
+	<div class="flex flex-col pt-[calc(1rem+env(safe-area-inset-top))] pb-32">
+		<header class="flex items-center justify-between gap-3 text-[0.95rem] font-bold whitespace-nowrap">
+			<a class="press -ml-1 flex min-h-12 min-w-0 items-center gap-1.5 px-1 lowercase" href="#/lugar">
+				<span class="truncate">{area.name}</span>
+				<Icon name="next" class="h-4 w-4 shrink-0 rotate-90 opacity-70" />
+			</a>
+			<button class="press flex min-h-12 shrink-0 items-center gap-2 px-1 font-semibold opacity-80" onclick={() => app.refresh(true)} aria-label="Atualizar agora">
+				<span>{app.loading ? 'atualizando' : formatAgo(data.fetchedAt, app.now)}</span>
+				<Icon name="refresh" class={`h-4 w-4 ${app.loading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
+			</button>
+		</header>
 
-			<div class="flex flex-col gap-2">
-				<h1 class="text-[clamp(2.9rem,16.5vw,4.4rem)] leading-[0.9] font-extrabold tracking-[-0.04em] uppercase">{WORD[risk]}</h1>
-				<p class="text-[1.45rem] leading-snug font-bold">{sentence(area.hazard, risk)}</p>
-				{#if a.reasons[0]}<p class="text-[1.05rem] opacity-90">{period(a.reasons[0].text)}</p>{/if}
-			</div>
-
-			{#if risk === 3}
-				<a class="press relative mx-auto my-2 grid h-52 w-52 place-items-center rounded-full bg-white text-center text-danger" href={route(shelter!.lat, shelter!.lon)} target="_blank" rel="noopener">
-					<span class="absolute inset-0 animate-[pulse-ring_1.6s_ease-out_infinite] rounded-full border-4 border-white"></span>
-					<span class="flex flex-col items-center gap-1 px-6">
-						<Icon name="route" class="h-10 w-10" />
-						<b class="text-xl leading-tight">Ir para o abrigo</b>
-						<span class="text-[0.85rem] font-bold text-ink-2">{shelter!.name}</span>
-					</span>
-				</a>
-				<ol class="flex flex-col gap-2 rounded-3xl bg-white/12 p-4 text-[1.05rem]">
-					<li><b>1.</b> Desligue a energia no disjuntor.</li>
-					<li><b>2.</b> Pegue documentos e remédios num saco plástico.</li>
-					<li><b>3.</b> Leve crianças, idosos e animais para um lugar alto.</li>
-					<li><b>4.</b> Não atravesse água corrente. 20 cm já derrubam uma pessoa.</li>
-				</ol>
-			{/if}
-
+		<section class="flex flex-col gap-5 pt-6 pb-8" aria-live="polite">
+			<h1 class="display whitespace-nowrap" style={fit(WORD[risk], 5.6)}>{WORD[risk]}</h1>
+			<p class="display text-[clamp(1.55rem,7.4vw,2.05rem)] leading-[1.02] tracking-[-0.02em]">{title}</p>
 			{#if canSpeak()}
-				<button class="press flex min-h-12 items-center gap-2 self-start rounded-full bg-black/8 px-4 font-bold" onclick={listen}>
+				<button class="press -ml-1 flex min-h-12 items-center gap-2 self-start px-1 font-bold underline decoration-2 underline-offset-4" onclick={listen}>
 					<Icon name={speaking ? 'stop' : 'volume'} class="h-5 w-5" />
-					{speaking ? 'Parar' : 'Ouvir'}
+					{speaking ? 'parar' : 'ouvir em voz alta'}
 				</button>
 			{/if}
-
-			<div class="flex flex-col gap-2">
-				<h2 class="text-lg font-extrabold">Próximas 12 horas</h2>
-				<Timeline forecast={data.forecast} tides={data.tides} now={app.now} hazard={area.hazard} window={a.window} />
-				{#if a.window}
-					<p class="font-bold">Mais cuidado entre {formatHour(a.window.from)} e {formatHour(a.window.to)}.</p>
-				{/if}
-			</div>
 		</section>
 
+		{#if risk === 3}
+			<a class="press rise -mx-5 mb-2 flex items-center justify-between gap-4 bg-(--ink) px-5 py-6 text-(--bg)" href={route} target="_blank" rel="noopener">
+				<span class="flex flex-col gap-1">
+					<span class="display text-[2.3rem]">ir para o abrigo</span>
+					<span class="font-semibold">{shelter.name}, {shelter.km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km a pé</span>
+				</span>
+				<Icon name="arrow" class="h-10 w-10 shrink-0" />
+			</a>
+			<ol class="mb-8">
+				{#each ['Desligue a energia no disjuntor.', 'Leve documentos e remédios num saco plástico.', 'Ajude crianças, idosos e acamados a sair primeiro.', 'Não atravesse água correndo. Até a canela já derruba.'] as step, i (step)}
+					<li class="hairline flex gap-4 border-b py-3 text-[1.08rem] font-semibold">
+						<span class="display w-6 text-[1.4rem] leading-none">{i + 1}</span>
+						{step}
+					</li>
+				{/each}
+			</ol>
+		{/if}
+
 		{#if stale || app.failed.length}
-			<p class="flex gap-3 rounded-2xl bg-watch p-4 font-bold text-watch-ink">
+			<p class="hairline mb-2 flex items-start gap-3 border-y py-3 font-semibold">
 				<Icon name="offline" class="mt-0.5 h-5 w-5 shrink-0" />
-				{stale ? `Dados de ${formatAgo(data.fetchedAt, app.now)}. Sem internet para atualizar.` : `Não conseguimos atualizar: ${app.failed.join(', ')}.`}
+				{stale ? `Sem internet. Estes dados são de ${formatAgo(data.fetchedAt, app.now)}.` : `Não deu para atualizar: ${app.failed.join(', ')}.`}
 			</p>
 		{/if}
 
-		<section class="flex flex-col divide-y divide-line overflow-hidden rounded-3xl bg-surface shadow-lift">
-			<div class="flex items-start gap-3 p-4">
-				<Icon name="rain" class="mt-0.5 h-7 w-7 shrink-0 text-rain" />
-				<div class="flex flex-col leading-snug">
-					<b class="text-lg first-letter:uppercase">{rainNow(station?.station ?? null)}</b>
-					{#if station}
-						<span class="text-ink-2">
-							{station.station.h24.toLocaleString('pt-BR')} mm em 24 h · {station.station.h72.toLocaleString('pt-BR')} mm em 3 dias
-						</span>
-						<span class="text-[0.85rem] text-ink-2">
-							Pluviômetro {station.station.name}, a {station.km < 1 ? `${Math.round(station.km * 1000)} m` : `${station.km.toFixed(1).replace('.', ',')} km`} · leitura {formatAgo(station.station.readAt, app.now)}
-						</span>
-					{:else}
-						<span class="text-ink-2">O risco está sendo calculado só pela previsão e pela maré.</span>
-					{/if}
-				</div>
-			</div>
-			<div class="flex items-start gap-3 p-4">
-				<Icon name="clock" class="mt-0.5 h-7 w-7 shrink-0 text-rain" />
-				<div class="flex flex-col leading-snug">
-					<b class="text-lg first-letter:uppercase">{peakWords(data.forecast, app.now)}</b>
-					<span class="text-[0.85rem] text-ink-2">Previsão por modelo, pode errar em chuva forte e rápida.</span>
-				</div>
-			</div>
-			{#if area.hazard === 'inundacao'}
-				<div class="flex items-start gap-3 p-4">
-					<Icon name="wave" class="mt-0.5 h-7 w-7 shrink-0 text-sea" />
-					<div class="flex min-w-0 flex-1 flex-col gap-2 leading-snug">
-						<div class="flex flex-col">
-							<b class="text-lg first-letter:uppercase">{tideWords(data.tides, app.now)}</b>
-							<span class="text-[0.85rem] text-ink-2">Com maré cheia, a água do canal demora a escoar para o mar.</span>
-						</div>
-						<ol class="-mr-2 flex gap-1.5 overflow-x-auto pb-1" aria-label="Próximas marés">
-							{#each upcoming as t (t.at)}
-								<li class={['flex shrink-0 flex-col items-center rounded-2xl px-3 py-1.5 leading-tight', t.high ? 'bg-sea text-white' : 'bg-sea-tint text-sea-deep']}>
-									<span class="text-[0.75rem] font-bold opacity-85">{t.high ? 'cheia' : 'vazia'} · {relativeDay(t.at, app.now)}</span>
-									<b class="tabular-nums">{formatHour(t.at)}</b>
-									<span class="text-[0.78rem] tabular-nums opacity-90">{t.height.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m</span>
-								</li>
-							{/each}
-						</ol>
+		<dl>
+			{#each table.list as row, i (row.label)}
+				<div class="hairline rise flex items-end justify-between gap-4 border-t py-3.5" style="--i:{i}">
+					<div class="flex min-w-0 flex-1 flex-col">
+						<dt class="text-[0.92rem] font-bold">{row.label}</dt>
+						<dd class="text-[0.86rem] leading-snug font-medium opacity-75">{row.detail}</dd>
 					</div>
+					<dd class="display shrink-0 text-right text-[clamp(1.25rem,6.4vw,1.65rem)] leading-none">{row.value}</dd>
 				</div>
-			{/if}
-			<div class="flex items-start gap-3 p-4">
-				<Icon name={data.alerts.length ? 'alert' : 'shield'} class={`mt-0.5 h-7 w-7 shrink-0 ${data.alerts.length ? 'text-danger' : 'text-calm-ink'}`} />
-				<div class="flex flex-col gap-1 leading-snug">
-					{#if data.alerts.length}
-						{#each data.alerts as alert (alert.title + alert.until)}
-							<b class="text-lg">{alert.title}: {alert.level}</b>
-							{#if alert.url}<a class="font-bold text-sea underline" href={alert.url} target="_blank" rel="noopener">Ler o aviso</a>{/if}
-						{/each}
-					{:else}
-						<b class="text-lg">Nenhum aviso oficial de chuva</b>
-						<span class="text-[0.85rem] text-ink-2">APAC e INMET, para Olinda</span>
-					{/if}
-				</div>
+			{/each}
+		</dl>
+		<p class="hairline border-t py-3 text-[0.84rem] font-medium opacity-70">Chuva medida no {table.source}.</p>
+
+		<section class="hairline flex flex-col gap-3 border-t pt-4 pb-6">
+			<div class="flex flex-col">
+				<h2 class="text-[0.92rem] font-bold">próximas 12 horas</h2>
+				{#if a.window}<span class="text-[0.86rem] font-semibold opacity-80">mais cuidado das {formatHour(a.window.from)} às {formatHour(a.window.to)}</span>{/if}
 			</div>
+			<Timeline forecast={data.forecast} tides={data.tides} now={app.now} hazard={area.hazard} window={a.window} />
 		</section>
 
-		{#if a.reasons.length > 1}
-			<details class="rounded-3xl bg-surface/70 p-5">
-				<summary class="cursor-pointer text-lg font-bold">Por que {WORD[risk].toLowerCase()}?</summary>
-				<ul class="mt-3 flex list-disc flex-col gap-1.5 pl-5">
-					{#each a.reasons as reason (reason.text)}<li>{reason.text}</li>{/each}
+		{#if a.reasons.length}
+			<details class="hairline group border-t py-4">
+				<summary class="flex min-h-10 cursor-pointer list-none items-center justify-between font-bold">
+					por que {WORD[risk].toLowerCase()}?
+					<Icon name="next" class="h-4 w-4 rotate-90 transition-transform group-open:-rotate-90" />
+				</summary>
+				<ul class="mt-2 flex flex-col gap-2">
+					{#each a.reasons as reason (reason.text)}<li class="font-medium">{reason.text}</li>{/each}
 				</ul>
 			</details>
 		{/if}
 
-		<nav class="grid grid-cols-2 gap-2" aria-label="Mais">
-			<a class="press flex min-h-20 flex-col justify-center gap-1 rounded-3xl bg-surface p-4 font-bold shadow-lift" href="#/preparar">
-				<Icon name="check" class="h-6 w-6 text-sea" /> Se preparar
-			</a>
-			<a class="press flex min-h-20 flex-col justify-center gap-1 rounded-3xl bg-surface p-4 font-bold shadow-lift" href="#/historico">
-				<Icon name="calendar" class="h-6 w-6 text-sea" /> Quando alagou
-			</a>
+		<nav class="flex flex-col" aria-label="Mais">
+			{#each [['#/preparar', 'se preparar'], ['#/historico', 'quando alagou'], ['#/sobre', 'como funciona']] as [href, label] (href)}
+				<a class="hairline press flex min-h-16 items-center justify-between border-t" {href}>
+					<span class="display text-[1.5rem]">{label}</span>
+					<Icon name="arrow" class="h-6 w-6" />
+				</a>
+			{/each}
 		</nav>
-		<a class="press flex min-h-12 items-center justify-center gap-2 font-bold text-sea" href="#/sobre"><Icon name="info" class="h-5 w-5" /> De onde vêm os dados</a>
 	</div>
 
-	<nav class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur" aria-label="Ações">
-		<div class="mx-auto grid max-w-lg grid-cols-3 gap-2">
-			<button class="press flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-whats text-[0.92rem] leading-tight font-bold text-white" onclick={warnNeighbors}>
-				<Icon name="whatsapp" class="h-6 w-6" /> Avisar vizinhos
+	<nav class="hairline fixed inset-x-0 bottom-0 z-30 border-t bg-(--bg) pb-[env(safe-area-inset-bottom)]" aria-label="Ações">
+		<div class="mx-auto grid max-w-lg grid-cols-3">
+			<button class="press flex min-h-[4.6rem] flex-col items-center justify-center gap-1 text-[0.88rem] font-bold" onclick={warnNeighbors}>
+				<Icon name="whatsapp" class="h-7 w-7" /> avisar vizinhos
 			</button>
-			<a class="press flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-ink text-[0.92rem] leading-tight font-bold text-white" href="tel:08000810060">
-				<Icon name="phone" class="h-6 w-6" /> Defesa Civil
+			<a class="press flex min-h-[4.6rem] flex-col items-center justify-center gap-1 text-[0.88rem] font-bold" href="tel:08000810060">
+				<Icon name="phone" class="h-7 w-7" /> defesa civil
 			</a>
-			<a class="press flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-sea-tint text-[0.92rem] leading-tight font-bold text-sea-deep" href={route(shelter!.lat, shelter!.lon)} target="_blank" rel="noopener">
-				<Icon name="home" class="h-6 w-6" /> Abrigo
+			<a class="press flex min-h-[4.6rem] flex-col items-center justify-center gap-1 text-[0.88rem] font-bold" href={route} target="_blank" rel="noopener">
+				<Icon name="home" class="h-7 w-7" /> abrigo
 			</a>
 		</div>
 	</nav>

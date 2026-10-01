@@ -203,7 +203,7 @@ export const SHELTERS: Shelter[] = [
 ];
 
 export const CONTACTS: Contact[] = [
-	{ label: 'Defesa Civil de Olinda', detail: '0800 081 0060 · 24 horas', href: 'tel:08000810060' },
+	{ label: 'Defesa Civil de Olinda, 24 horas', detail: '0800 081 0060', href: 'tel:08000810060' },
 	{ label: 'WhatsApp da Defesa Civil', detail: '(81) 99266-5307', href: 'https://wa.me/5581992665307' },
 	{ label: 'Bombeiros', detail: '193', href: 'tel:193' },
 	{ label: 'Defesa Civil nacional', detail: '199', href: 'tel:199' }

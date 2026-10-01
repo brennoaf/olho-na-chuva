@@ -22,6 +22,23 @@ const SENTENCE: Record<Hazard, Record<Risk, string>> = {
 	}
 };
 
+const HEADLINE: Record<Hazard, Record<Risk, string>> = {
+	inundacao: {
+		0: 'sem chuva forte agora nem nas próximas horas',
+		1: 'pode chover forte, fique de olho no canal',
+		2: 'o canal pode transbordar, tire do chão o que puder molhar',
+		3: 'o canal pode transbordar a qualquer momento'
+	},
+	deslizamento: {
+		0: 'sem chuva forte agora nem nas próximas horas',
+		1: 'a terra está ficando molhada, observe rachaduras',
+		2: 'muita chuva nos últimos dias, a barreira pode ceder',
+		3: 'a barreira pode descer a qualquer momento'
+	}
+};
+
+export const headline = (hazard: Hazard, risk: Risk) => HEADLINE[hazard][risk];
+
 export const period = (text: string) => (/[.!?]$/.test(text) ? text : `${text}.`);
 
 export const sentence = (hazard: Hazard, risk: Risk) => SENTENCE[hazard][risk];
@@ -112,35 +129,93 @@ export function neighborMessage(area: Area, a: Assessment, station: Station | nu
 
 	const body: Record<Risk, string[]> = {
 		0: [
-			`${hi}, vizinhos! 🌤️`,
+			`${hi}, vizinhos!`,
 			`Passando pra dizer que aqui no ${place} está tudo tranquilo por enquanto. ${rain} ${next}`,
-			'Qualquer mudança eu aviso. Fiquem bem! 💙'
+			'Qualquer mudança eu aviso. Fiquem bem!'
 		],
 		1: [
-			`${hi}, vizinhos! 🟡`,
+			`${hi}, vizinhos!`,
 			`Só um aviso de cuidado aqui do ${place}. ${next} ${tide}`,
 			flood
 				? 'Nada de pânico, mas vale deixar documentos e remédios num saco plástico e ficar de olho no canal.'
 				: 'Nada de pânico, mas vale observar se aparece rachadura nas paredes ou no chão, ou água barrenta descendo da barreira.',
-			'Se alguém precisar de uma mão, é só chamar. 🙏'
+			'Se alguém precisar de uma mão, é só chamar.'
 		],
 		2: [
-			'Vizinhos, atenção 🟠',
+			'Vizinhos, atenção!',
 			`${rain} ${tide || next}`,
 			flood ? '*O canal pode transbordar.* Vamos tirar do chão o que puder molhar.' : '*A barreira pode ceder.* Quem mora perto dela: se aparecer rachadura, estalo ou árvore entortando, saia de casa na hora.',
-			'E vamos dar uma olhada em quem mora sozinho, nos idosos e em quem tem criança pequena. Se precisar de ajuda pra levantar móvel, me chama. Juntos a gente se cuida. 🤝'
+			'E vamos dar uma olhada em quem mora sozinho, nos idosos e em quem tem criança pequena. Se precisar de ajuda pra levantar móvel, me chama. Juntos a gente se cuida.'
 		],
 		3: [
-			flood ? '🔴 Gente, é sério: *o canal pode transbordar a qualquer momento.*' : '🔴 Gente, é sério: *a barreira pode descer.*',
+			flood ? 'Gente, é sério: *o canal pode transbordar a qualquer momento.*' : 'Gente, é sério: *a barreira pode descer.*',
 			rain,
 			flood
 				? 'Se a água começar a subir, não esperem: desliguem a energia, peguem documentos e remédios e vão pra um lugar alto.'
 				: 'Quem mora perto da encosta, saia de casa agora e vá pra casa de um parente ou pra um abrigo.',
 			`O abrigo mais perto é a ${shelter}.`,
-			'Quem puder, ajude os vizinhos idosos e acamados a sair. Estou por aqui, qualquer coisa me liguem. ❤️',
-			'Defesa Civil: 0800 081 0060 · Bombeiros: 193'
+			'Quem puder, ajude os vizinhos idosos e acamados a sair. Estou por aqui, qualquer coisa me liguem.',
+			'Defesa Civil de Olinda: 0800 081 0060',
+			'Bombeiros: 193'
 		]
 	};
 
-	return [...body[a.risk].map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean), '', `Mandei pelo Olho na Chuva, que junta a chuva medida aqui perto, a previsão e a maré: ${location.origin}`].join('\n\n').replace(/\n{3,}/g, '\n\n');
+	return [...body[a.risk].map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean), '', `Mandei pelo Olho na Chuva, que junta a chuva medida aqui perto, a previsão e a maré. Dá pra acompanhar aqui: ${location.origin}`].join('\n\n').replace(/\n{3,}/g, '\n\n');
+}
+
+export type Row = { label: string; detail: string; value: string };
+
+const decimal = (value: number) => value.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+const distance = (km: number) => (km < 1 ? `${Math.round(km * 1000)} m` : `${decimal(km)} km`);
+
+export function rows(
+	area: Area,
+	station: { station: Station; km: number } | null,
+	tides: Extreme[],
+	forecast: Hour[],
+	official: 'amarelo' | 'laranja' | 'vermelho' | null,
+	now: number,
+	ago: (instant: number) => string
+): { list: Row[]; source: string } {
+	const list: Row[] = [];
+	const s = station?.station ?? null;
+	const source = station ? `pluviômetro ${station.station.name.toLowerCase()}, a ${distance(station.km)}, ${ago(station.station.readAt)}` : 'nenhum pluviômetro funcionando por perto';
+
+	list.push({
+		label: 'chuva agora',
+		detail: s ? `${decimal(s.h1)} mm na última hora` : 'sem leitura',
+		value: !s ? 'sem dado' : s.h1 >= 20 ? 'muito forte' : s.h1 >= 5 ? 'forte' : s.h1 > 0 ? 'fraca' : 'parada'
+	});
+
+	if (area.hazard === 'deslizamento') {
+		list.push({
+			label: 'últimos 3 dias',
+			detail: s ? `${decimal(s.h72)} mm` : 'sem leitura',
+			value: !s ? 'sem dado' : s.h72 >= 100 ? 'encharcado' : s.h72 >= 60 ? 'muito' : s.h72 >= 30 ? 'molhado' : 'pouco'
+		});
+	} else {
+		list.push({
+			label: 'últimas 24 horas',
+			detail: s ? `${decimal(s.h24)} mm` : 'sem leitura',
+			value: !s ? 'sem dado' : s.h24 >= 60 ? 'demais' : s.h24 >= 40 ? 'muita' : s.h24 >= 15 ? 'moderada' : 'pouca'
+		});
+		const high = nextHigh(tides, now);
+		const next = tides.find((t) => t.at > now);
+		list.push({
+			label: 'maré',
+			detail: high ? `cheia ${relativeDay(high.at, now) === 'hoje' ? '' : `${relativeDay(high.at, now)} `}às ${formatHour(high.at)}` : 'tábua indisponível',
+			value: !next ? 'sem dado' : next.high ? 'enchendo' : 'vazando'
+		});
+	}
+
+	const coming = forecast.filter((h) => h.at >= now - HOUR && h.at < now + 12 * HOUR);
+	const peak = coming.reduce<Hour | null>((best, h) => (!best || h.mm > best.mm ? h : best), null);
+	list.push({
+		label: 'previsão',
+		detail: peak && peak.mm >= 1 ? `mais forte às ${formatHour(peak.at)}` : 'sem chuva forte',
+		value: !peak || peak.mm < 1 ? 'seco' : peak.mm >= 8 ? 'forte' : peak.mm >= 3 ? 'moderada' : 'fraca'
+	});
+
+	list.push({ label: 'aviso oficial', detail: 'apac e inmet', value: official ?? 'nenhum' });
+	return { list, source };
 }

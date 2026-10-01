@@ -9,10 +9,8 @@
 	const mine = $derived(app.reports.filter((r) => r.area === area.id));
 	const since = $derived(area.events.at(-1)?.date.slice(0, 4));
 
-	const OPTIONS = $derived(
-		area.hazard === 'inundacao'
-			? ['A água chegou na rua', 'A água entrou em casa', 'O canal transbordou']
-			: ['Apareceu rachadura na barreira', 'Desceu terra ou pedra', 'Casa atingida']
+	const options = $derived(
+		area.hazard === 'inundacao' ? ['A água chegou na rua', 'A água entrou em casa', 'O canal transbordou'] : ['Apareceu rachadura na barreira', 'Desceu terra ou pedra', 'Casa atingida']
 	);
 
 	let picking = $state(false);
@@ -20,16 +18,15 @@
 	function report(note: string) {
 		app.addReport(note);
 		picking = false;
+		const when = `${formatDay(Date.now())}, às ${formatHour(Date.now())}`;
 		const text = [
-			`⚠️ *${note}* · ${area.name}`,
-			`${formatDay(Date.now())} às ${formatHour(Date.now())}`,
-			station ? `Chuva: ${station.h1.toLocaleString('pt-BR')} mm na última hora, ${station.h24.toLocaleString('pt-BR')} mm em 24 h (pluviômetro ${station.name})` : '',
-			'',
-			'Registrado pelo app Olho na Chuva'
+			`*${note}* aqui no ${area.name}, ${when}.`,
+			station ? `O pluviômetro ${station.name} marcou ${station.h1.toLocaleString('pt-BR')} mm na última hora e ${station.h24.toLocaleString('pt-BR')} mm em 24 horas.` : '',
+			'Registrei no Olho na Chuva para a gente ter o histórico da rua.'
 		]
 			.filter(Boolean)
-			.join('\n');
-		app.notify('Registrado neste celular. Agora mande para o grupo da rua.');
+			.join('\n\n');
+		app.notify('Guardado neste celular. Agora mande para o grupo da rua.');
 		open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
 	}
 
@@ -39,56 +36,59 @@
 	};
 </script>
 
-<div class="flex flex-col gap-5 pt-[calc(1.25rem+env(safe-area-inset-top))]">
+<div class="flex flex-col gap-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-10">
 	<Back />
-	<header class="flex flex-col gap-2">
-		<h1 class="text-[2.2rem] leading-tight font-extrabold">Quando alagou</h1>
+	<header class="flex flex-col gap-3">
+		<h1 class="display text-[clamp(3rem,15vw,4.2rem)]">quando alagou</h1>
 		{#if area.events.length}
-			<p class="text-[1.35rem] leading-snug font-bold">
-				{area.name}: <span class="text-danger">{area.events.length} vezes nas notícias</span> desde {since}.
+			<p class="flex items-end gap-3">
+				<span class="display text-[4.5rem] leading-[0.8] tabular-nums">{area.events.length}</span>
+				<span class="pb-1 text-[1.1rem] leading-tight font-bold">vezes nas notícias<br />desde {since}</span>
 			</p>
 		{/if}
-		<p class="text-ink-2">Cada registro ajuda a acertar o alerta e a cobrar obra do poder público.</p>
+		<p class="text-[1.05rem] leading-snug font-medium">Cada registro ajuda a acertar o alerta e a cobrar obra do poder público.</p>
 	</header>
 
 	{#if picking}
-		<section class="rise flex flex-col gap-2 rounded-3xl bg-danger p-5 text-white shadow-lift">
-			<b class="text-xl">O que aconteceu?</b>
-			{#each OPTIONS as option (option)}
-				<button class="press min-h-14 rounded-2xl bg-white px-4 text-left text-lg font-bold text-danger" onclick={() => report(option)}>{option}</button>
+		<section class="rise flex flex-col gap-1 rounded-lg bg-(--ink) p-2 text-(--bg)">
+			<span class="px-3 pt-2 pb-1 font-bold">o que aconteceu?</span>
+			{#each options as option (option)}
+				<button class="press flex min-h-14 items-center justify-between rounded-md px-3 text-left text-[1.1rem] font-bold hover:bg-white/10" onclick={() => report(option)}>
+					{option}
+					<Icon name="arrow" class="h-5 w-5" />
+				</button>
 			{/each}
-			<button class="press min-h-12 font-bold" onclick={() => (picking = false)}>Cancelar</button>
+			<button class="press min-h-12 font-semibold opacity-80" onclick={() => (picking = false)}>cancelar</button>
 		</section>
 	{:else}
-		<button class="press flex min-h-16 items-center justify-center gap-3 rounded-2xl bg-danger text-lg font-bold text-white" onclick={() => (picking = true)}>
+		<button class="press flex min-h-16 items-center justify-between rounded-lg bg-(--ink) px-5 text-(--bg)" onclick={() => (picking = true)}>
+			<span class="display text-[1.4rem]">{area.hazard === 'inundacao' ? 'está alagando agora' : 'a barreira mexeu agora'}</span>
 			<Icon name="flag" class="h-6 w-6" />
-			{area.hazard === 'inundacao' ? 'Está alagando agora' : 'A barreira mexeu agora'}
 		</button>
 	{/if}
 
 	{#if mine.length}
-		<section class="flex flex-col gap-2">
-			<h2 class="px-1 text-xl font-extrabold">Registrado por você</h2>
-			<ul class="flex flex-col divide-y divide-line rounded-3xl bg-surface shadow-lift">
+		<section>
+			<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">registrado por você</h2>
+			<ul>
 				{#each mine as r (r.at)}
-					<li class="flex justify-between gap-3 px-4 py-3"><b>{r.note}</b><span class="shrink-0 text-ink-2">{formatDay(r.at)} {formatHour(r.at)}</span></li>
+					<li class="hairline flex justify-between gap-3 border-t py-3"><b>{r.note}</b><span class="shrink-0 font-medium opacity-75">{formatDay(r.at)}, {formatHour(r.at)}</span></li>
 				{/each}
 			</ul>
 		</section>
 	{/if}
 
-	<section class="flex flex-col gap-3">
-		<h2 class="px-1 text-xl font-extrabold">Nas notícias</h2>
-		<ol class="relative flex flex-col gap-4 border-l-4 border-sea-tint pl-5">
-			{#each area.events as event, i (event.date)}
-				<li class="rise relative" style="--i:{i}">
-					<span class="absolute top-1.5 -left-[1.95rem] h-5 w-5 rounded-full border-4 border-bg bg-danger"></span>
-					<b class="text-lg">{date(event.date)}</b>
-					<p>{event.text}</p>
-					<a class="text-[0.9rem] font-bold text-sea underline" href={event.url} target="_blank" rel="noopener">Ver a notícia</a>
+	<section>
+		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">nas notícias</h2>
+		<ol>
+			{#each area.events as event, i (event.date + event.url)}
+				<li class="hairline rise flex flex-col gap-1 border-t py-4" style="--i:{i}">
+					<span class="display text-[1.6rem] tabular-nums">{date(event.date)}</span>
+					<p class="font-medium">{event.text}</p>
+					<a class="self-start font-bold underline decoration-2 underline-offset-4" href={event.url} target="_blank" rel="noopener">ler a notícia</a>
 				</li>
 			{:else}
-				<li class="text-ink-2">Ainda não achamos notícias desta área. Registre quando acontecer.</li>
+				<li class="hairline border-t py-4 font-medium opacity-75">Ainda não achamos notícias desta área. Registre quando acontecer.</li>
 			{/each}
 		</ol>
 	</section>
