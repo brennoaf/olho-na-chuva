@@ -8,17 +8,11 @@
 	import Toast from '$lib/components/Toast.svelte';
 	import { onMount } from 'svelte';
 
-	const THEMES = ['calm', 'watch', 'warn', 'danger'] as const;
-
-	function night(now: number): boolean {
-		const hour = Number(new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', hour12: false }).format(now));
-		return hour >= 18 || hour < 5;
-	}
+	const THEMES = [null, null, 'warn', 'danger'] as const;
 
 	const theme = $derived.by(() => {
 		if (app.route !== 'inicio' || !app.area || !app.assessment) return null;
-		const risk = app.assessment.risk;
-		return risk === 0 && night(app.now) ? 'night' : THEMES[risk];
+		return THEMES[app.assessment.risk];
 	});
 
 	onMount(() => app.start());

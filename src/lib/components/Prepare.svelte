@@ -9,20 +9,20 @@
 
 	const groups = $derived([
 		{
-			title: 'kit para sair rápido',
+			title: 'Kit para sair rápido',
 			items: ['Documentos e receitas num saco plástico fechado', 'Remédios de uso contínuo para 3 dias', 'Lanterna, pilhas e carregador de celular', 'Água e comida que não estraga']
 		},
 		area?.hazard === 'deslizamento'
 			? {
-					title: 'cuidar da barreira',
+					title: 'Cuidar da barreira',
 					items: ['Não jogar lixo nem água de pia na encosta', 'Pedir lona à Defesa Civil se a barreira estiver exposta', 'Observar rachaduras novas em paredes e no chão', 'Combinar um lugar seguro fora da área de risco']
 				}
 			: {
-					title: 'cuidar da casa e do canal',
+					title: 'Cuidar da casa e do canal',
 					items: ['Deixar móveis e eletrodomésticos no alto', 'Não jogar lixo no canal: ele entope e transborda', 'Saber onde fica o disjuntor para desligar a energia', 'Combinar um lugar alto para onde ir']
 				},
 		{
-			title: 'combinar com os vizinhos',
+			title: 'Combinar com os vizinhos',
 			items: ['Ter um grupo de WhatsApp da rua', 'Saber quem precisa de ajuda: idosos, acamados, crianças', 'Escolher quem avisa o grupo quando o app ficar laranja']
 		}
 	]);
@@ -53,13 +53,13 @@
 <div class="flex flex-col gap-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-10">
 	<Back />
 	<header class="flex flex-col gap-3">
-		<h1 class="display text-[clamp(3rem,15vw,4.2rem)]">se preparar</h1>
+		<h1 class="display text-[clamp(3rem,15vw,4.2rem)]">Se preparar</h1>
 		<p class="text-[1.1rem] leading-snug font-medium">Faça antes do inverno. Na hora da chuva, não dá tempo.</p>
 	</header>
 
 	<a class="press flex items-center justify-between gap-4 rounded-lg bg-(--ink) px-5 py-5 text-(--bg)" href="sms:40199">
 		<span class="flex flex-col gap-1">
-			<span class="display text-[1.5rem]">alerta por sms</span>
+			<span class="display text-[1.5rem]">Alerta por SMS</span>
 			<span class="font-medium">Mande o seu CEP para 40199. É grátis e é da Defesa Civil.</span>
 		</span>
 		<Icon name="sms" class="h-8 w-8 shrink-0" />
@@ -67,7 +67,7 @@
 
 	<div class="flex items-end justify-between">
 		<span class="display text-[3rem] tabular-nums">{count}/{total}</span>
-		<span class="pb-1 font-bold">{count === total ? 'tudo pronto' : 'feitos'}</span>
+		<span class="pb-1 font-bold">{count === total ? 'Tudo pronto' : 'feitos'}</span>
 	</div>
 
 	{#each groups as group (group.title)}
@@ -90,7 +90,7 @@
 	{/each}
 
 	<section>
-		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">telefones</h2>
+		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">Telefones</h2>
 		{#each CONTACTS as c (c.href)}
 			<a class="hairline press flex min-h-16 items-center justify-between gap-4 border-t py-3" href={c.href} target={c.href.startsWith('http') ? '_blank' : undefined} rel="noopener">
 				<span class="flex flex-col">

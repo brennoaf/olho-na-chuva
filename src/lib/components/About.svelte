@@ -7,19 +7,19 @@
 	const m = (n: number) => n.toLocaleString('pt-BR');
 
 	const sources = [
-		['chuva medida', 'Pluviômetros da APAC e do Cemaden, a cada 10 minutos'],
-		['previsão', 'Open-Meteo, hora a hora'],
-		['maré', 'Tábua do Porto do Recife, da Marinha, publicada pela Prefeitura do Recife'],
-		['avisos', 'APAC e INMET']
+		['Chuva medida', 'Pluviômetros da APAC e do Cemaden, a cada 10 minutos'],
+		['Previsão', 'Open-Meteo, hora a hora'],
+		['Maré', 'Tábua do Porto do Recife, da Marinha, publicada pela Prefeitura do Recife'],
+		['Avisos', 'APAC e INMET']
 	];
 </script>
 
 <div class="flex flex-col gap-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-10">
 	<Back />
-	<h1 class="display text-[clamp(3rem,15vw,4.2rem)]">como funciona</h1>
+	<h1 class="display text-[clamp(3rem,15vw,4.2rem)]">Como funciona</h1>
 
 	<section>
-		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">de onde vêm os dados</h2>
+		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">De onde vêm os dados</h2>
 		<dl>
 			{#each sources as [label, text] (label)}
 				<div class="hairline border-t py-3">
@@ -31,13 +31,13 @@
 	</section>
 
 	<section>
-		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">quando o app diz perigo</h2>
+		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">Quando o app manda sair</h2>
 		<div class="hairline border-t py-3">
-			<p class="display text-[1.35rem]">alagamento</p>
+			<p class="display text-[1.35rem]">Alagamento</p>
 			<p class="font-medium">{m(I.perigo.h24)} mm em 24 horas, {m(I.perigo.h1)} mm em 1 hora, ou {m(I.perigo.h3WithTide)} mm em 3 horas com maré acima de {m(I.highTide)} m.</p>
 		</div>
 		<div class="hairline border-t py-3">
-			<p class="display text-[1.35rem]">deslizamento</p>
+			<p class="display text-[1.35rem]">Deslizamento</p>
 			<p class="font-medium">{m(D.perigo.h72)} mm em 3 dias ou {m(D.perigo.h24)} mm em 24 horas.</p>
 		</div>
 		<p class="hairline border-t py-3 font-medium opacity-80">
@@ -46,7 +46,7 @@
 	</section>
 
 	<section>
-		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">privacidade</h2>
+		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">Privacidade</h2>
 		<p class="hairline border-t py-3 font-medium">Sem cadastro e sem login. A área escolhida e os seus registros ficam só neste celular.</p>
 	</section>
 

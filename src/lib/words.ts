@@ -5,7 +5,10 @@ import type { Assessment, Hazard, Risk } from './risk';
 import { nextHigh, type Extreme } from './tide';
 import { formatHour, HOUR, relativeDay } from './time';
 
-export const WORD: Record<Risk, string> = { 0: 'Tranquilo', 1: 'Atenção', 2: 'Alerta', 3: 'Perigo' };
+export function levelName(hazard: Hazard, risk: Risk): string {
+	if (risk === 3) return hazard === 'inundacao' ? 'Saia de perto do canal' : 'Saia de perto da barreira';
+	return ['Tudo calmo', 'Fique de olho', 'Prepare-se'][risk]!;
+}
 
 const SENTENCE: Record<Hazard, Record<Risk, string>> = {
 	inundacao: {
@@ -24,16 +27,16 @@ const SENTENCE: Record<Hazard, Record<Risk, string>> = {
 
 const HEADLINE: Record<Hazard, Record<Risk, string>> = {
 	inundacao: {
-		0: 'sem chuva forte agora nem nas próximas horas',
-		1: 'pode chover forte, fique de olho no canal',
-		2: 'o canal pode transbordar, tire do chão o que puder molhar',
-		3: 'o canal pode transbordar a qualquer momento'
+		0: 'Sem chuva forte agora nem nas próximas horas.',
+		1: 'Pode chover forte. Olhe o canal de vez em quando.',
+		2: 'O canal pode transbordar. Tire do chão o que pode molhar e separe documentos e remédios.',
+		3: 'O canal pode transbordar a qualquer momento. Se a água chegar na rua, vá para um lugar alto.'
 	},
 	deslizamento: {
-		0: 'sem chuva forte agora nem nas próximas horas',
-		1: 'a terra está ficando molhada, observe rachaduras',
-		2: 'muita chuva nos últimos dias, a barreira pode ceder',
-		3: 'a barreira pode descer a qualquer momento'
+		0: 'Sem chuva forte agora nem nas próximas horas.',
+		1: 'A terra está ficando molhada. Observe se aparecem rachaduras.',
+		2: 'Choveu muito nos últimos dias. Se a barreira rachar ou uma árvore entortar, saia de casa.',
+		3: 'A barreira pode descer a qualquer momento. Quem mora perto dela deve sair agora.'
 	}
 };
 
@@ -68,7 +71,7 @@ export function peakWords(forecast: Hour[], now: number): string {
 
 export function spoken(area: Area, a: Assessment, station: Station | null, tides: Extreme[], forecast: Hour[], now: number): string {
 	return [
-		`${area.name}: ${WORD[a.risk]}.`,
+		`${area.name}: ${levelName(area.hazard, a.risk)}.`,
 		sentence(area.hazard, a.risk),
 		a.reasons[0] ? period(a.reasons[0].text) : '',
 		`Agora, ${rainNow(station)}.`,
@@ -218,4 +221,42 @@ export function rows(
 
 	list.push({ label: 'aviso oficial', detail: 'apac e inmet', value: official ?? 'nenhum' });
 	return { list, source };
+}
+
+export type Moment = { at: number | null; when: string; text: string; icon: 'rain' | 'wave' | 'alert' | 'check' | 'clock'; strong: boolean };
+
+export function moments(hazard: Hazard, station: Station | null, forecast: Hour[], tides: Extreme[], window: { from: number; to: number } | null, now: number): Moment[] {
+	const list: Moment[] = [];
+	const nowRain = !station ? 'Sem medição de chuva por perto' : station.h1 >= 20 ? 'Chuva muito forte' : station.h1 >= 5 ? 'Chuva forte' : station.h1 > 0 ? 'Chuva fraca' : 'Sem chuva';
+	list.push({ at: null, when: 'Agora', text: nowRain, icon: station && station.h1 > 0 ? 'rain' : 'check', strong: !!station && station.h1 >= 5 });
+
+	const next = forecast.filter((h) => h.at > now && h.at < now + 12 * HOUR);
+	const raining = !!station && station.h1 > 0;
+	const first = next.find((h) => h.mm >= 1);
+	const peak = next.reduce<Hour | null>((best, h) => (!best || h.mm > best.mm ? h : best), null);
+	if (first && !raining) list.push({ at: first.at, when: formatHour(first.at), text: 'Começa a chover', icon: 'rain', strong: false });
+	const strongNow = !!station && station.h1 >= 5;
+	if (peak && peak.mm >= 3 && peak.at !== first?.at && !(strongNow && peak.at - now < 3 * HOUR)) list.push({ at: peak.at, when: formatHour(peak.at), text: peak.mm >= 8 ? 'Chuva forte' : 'Chuva moderada', icon: 'rain', strong: peak.mm >= 8 });
+
+	if (hazard === 'inundacao') {
+		for (const t of tides.filter((t) => t.high && t.at > now && t.at < now + 12 * HOUR)) {
+			const full = t.height >= 2;
+			list.push({ at: t.at, when: formatHour(t.at), text: full ? 'Maré cheia, o canal escoa mal' : 'Maré alta', icon: 'wave', strong: full });
+		}
+	}
+
+	if (window && window.from > now) list.push({ at: window.from, when: formatHour(window.from), text: `Mais cuidado até as ${formatHour(window.to)}`, icon: 'alert', strong: true });
+
+	const merged: Moment[] = [];
+	for (const m of list.slice(1).sort((a, b) => (a.at ?? 0) - (b.at ?? 0))) {
+		const same = merged.find((x) => x.when === m.when);
+		if (same) {
+			same.text = `${same.text}. ${m.text}`;
+			same.strong ||= m.strong;
+			if (m.icon === 'alert') same.icon = 'alert';
+		} else merged.push({ ...m });
+	}
+	const future = merged.slice(0, 4);
+	if (future.length === 0) future.push({ at: null, when: 'Até amanhã', text: 'Nada previsto que mereça cuidado', icon: 'clock', strong: false });
+	return [list[0]!, ...future];
 }
