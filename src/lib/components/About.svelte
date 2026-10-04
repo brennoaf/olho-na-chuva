@@ -1,56 +1,55 @@
 <script lang="ts">
-	import { LIMITS } from '$lib/risk';
-	import Back from './Back.svelte';
-
-	const I = LIMITS.inundacao;
-	const D = LIMITS.deslizamento;
-	const m = (n: number) => n.toLocaleString('pt-BR');
-
-	const sources = [
-		['Chuva medida', 'Pluviômetros da APAC e do Cemaden, a cada 10 minutos'],
-		['Previsão', 'Open-Meteo, hora a hora'],
-		['Maré', 'Tábua do Porto do Recife, da Marinha, publicada pela Prefeitura do Recife'],
-		['Avisos', 'APAC e INMET']
-	];
+	import Icon from '$lib/Icon.svelte';
 </script>
 
-<div class="flex flex-col gap-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-10">
-	<Back />
-	<h1 class="display text-[clamp(3rem,15vw,4.2rem)]">Como funciona</h1>
+<div class="about-page">
+	<header class="about-intro">
+		<h1 tabindex="-1">Sobre</h1>
+		<p>O Olho na Chuva reúne dados públicos para mostrar a situação da sua área e orientar cuidados.</p>
+	</header>
 
-	<section>
-		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">De onde vêm os dados</h2>
-		<dl>
-			{#each sources as [label, text] (label)}
-				<div class="hairline border-t py-3">
-					<dt class="display text-[1.35rem]">{label}</dt>
-					<dd class="font-medium">{text}</dd>
-				</div>
-			{/each}
-		</dl>
-	</section>
-
-	<section>
-		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">Quando o app manda sair</h2>
-		<div class="hairline border-t py-3">
-			<p class="display text-[1.35rem]">Alagamento</p>
-			<p class="font-medium">{m(I.perigo.h24)} mm em 24 horas, {m(I.perigo.h1)} mm em 1 hora, ou {m(I.perigo.h3WithTide)} mm em 3 horas com maré acima de {m(I.highTide)} m.</p>
+	<section class="about-overview" aria-label="Como o aplicativo ajuda">
+		<div class="about-item">
+			<Icon name="weather" class="h-7 w-7" />
+			<span><h2>Informação rápida</h2><p>Chuva medida, previsão, maré e avisos oficiais.</p></span>
 		</div>
-		<div class="hairline border-t py-3">
-			<p class="display text-[1.35rem]">Deslizamento</p>
-			<p class="font-medium">{m(D.perigo.h72)} mm em 3 dias ou {m(D.perigo.h24)} mm em 24 horas.</p>
+		<div class="about-item">
+			<Icon name="shield" class="h-7 w-7" />
+			<span><h2>Orientação, não confirmação</h2><p>O nível indica cuidados. Não confirma o que aconteceu na sua rua.</p></span>
 		</div>
-		<p class="hairline border-t py-3 font-medium opacity-80">
-			Esses números saíram das cheias do Canal do Fragoso em 2025 e 2026: em todas choveu mais de {m(I.perigo.h24)} mm no dia. Eles vão ser ajustados com os moradores, a partir do que cada um registrar.
-		</p>
 	</section>
 
-	<section>
-		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">Privacidade</h2>
-		<p class="hairline border-t py-3 font-medium">Sem cadastro e sem login. A área escolhida e os seus registros ficam só neste celular.</p>
+	<section class="about-privacy">
+		<Icon name="note" class="h-7 w-7" />
+		<span><h2>Seus dados ficam no celular</h2><p>Sem cadastro ou login. Compartilhar no WhatsApp é uma escolha sua.</p></span>
 	</section>
 
-	<p class="rounded-lg bg-(--ink) p-5 text-[1.05rem] font-semibold text-(--bg)">
-		O app ajuda a se preparar, mas não substitui a Defesa Civil. Se a água subir ou a barreira rachar, saia de casa e ligue 0800 081 0060.
-	</p>
+	<details class="about-disclosure">
+		<summary><span><Icon name="rain" class="h-6 w-6" />Fontes dos dados</span><Icon name="next" class="h-5 w-5" /></summary>
+		<div class="about-disclosure-content">
+			<p><b>APAC:</b> chuva medida e avisos.</p>
+			<p><b>INMET:</b> avisos meteorológicos.</p>
+			<p><b>Open-Meteo:</b> previsão do tempo.</p>
+			<p><b>Marinha e Prefeitura do Recife:</b> previsão da maré.</p>
+		</div>
+	</details>
+
+	<details class="about-disclosure">
+		<summary><span><Icon name="home" class="h-6 w-6" />Instalar no celular</span><Icon name="next" class="h-5 w-5" /></summary>
+		<div class="about-disclosure-content">
+			<h2>Android</h2>
+			<p>No menu do navegador, toque em Instalar aplicativo ou Adicionar à tela inicial.</p>
+			<h2>iPhone</h2>
+			<p>No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.</p>
+		</div>
+	</details>
+
+	<section class="about-help" aria-labelledby="help-heading">
+		<h2 id="help-heading">Em caso de perigo</h2>
+		<p>Não atravesse áreas alagadas. Se precisar de ajuda, ligue.</p>
+		<div class="about-help-actions">
+			<a href="tel:08000810060"><Icon name="phone" class="h-6 w-6" /><span><b>Defesa Civil</b><small>0800 081 0060</small></span></a>
+			<a href="tel:193"><Icon name="phone" class="h-6 w-6" /><span><b>Bombeiros</b><small>193</small></span></a>
+		</div>
+	</section>
 </div>

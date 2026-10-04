@@ -37,7 +37,7 @@ export type Inputs = {
 	official: Level | null;
 };
 
-export type Reason = { risk: Risk; text: string };
+export type Reason = { risk: Risk; text: string; summary?: string };
 export type Assessment = { risk: Risk; reasons: Reason[]; window: { from: number; to: number } | null; blind: boolean };
 
 const OFFICIAL: Record<Level, Risk> = { amarelo: 1, laranja: 2, vermelho: 3 };
@@ -48,14 +48,14 @@ function highTideNear(tides: Extreme[], from: number, to: number, min: number): 
 
 export function assess({ hazard, now, station, forecast, tides, official }: Inputs): Assessment {
 	const reasons: Reason[] = [];
-	const add = (risk: Risk, text: string) => reasons.push({ risk, text });
+	const add = (risk: Risk, text: string, summary = text) => reasons.push({ risk, text, summary });
 	const f3 = sum(forecast, now, now + 3 * HOUR);
 	const f6 = sum(forecast, now, now + 6 * HOUR);
 	const f12 = sum(forecast, now, now + 12 * HOUR);
 	const peak = forecast.filter((h) => h.at >= now && h.at < now + 12 * HOUR).reduce((m, h) => Math.max(m, h.mm), 0);
 	const mm = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mm`;
 
-	if (official) add(OFFICIAL[official], `Aviso oficial ${official} de chuva para a região`);
+	if (official) add(OFFICIAL[official], `Aviso oficial ${official} de chuva para a região`, `Aviso oficial ${official} para a região.`);
 
 	if (hazard === 'inundacao') {
 		const L = LIMITS.inundacao;
@@ -63,11 +63,11 @@ export function assess({ hazard, now, station, forecast, tides, official }: Inpu
 		const tideSoon = highTideNear(tides, now, now + 3 * HOUR, L.highTide);
 		if (station) {
 			const s = station;
-			if (s.h24 >= L.perigo.h24) add(3, `Choveu ${mm(s.h24)} em 24 horas. Foi assim nos dias em que o canal transbordou.`);
+			if (s.h24 >= L.perigo.h24) add(3, `Choveu ${mm(s.h24)} em 24 horas no pluviômetro de referência`, `${mm(s.h24)} medidos em 24h.`);
 			else if (s.h24 >= L.alerta.h24) add(2, `Choveu ${mm(s.h24)} em 24 horas`);
 			else if (s.h24 >= L.atencao.h24) add(1, `Choveu ${mm(s.h24)} em 24 horas`);
 			if (s.h1 >= L.perigo.h1) add(3, `Chuva muito forte: ${mm(s.h1)} na última hora`);
-			if (tideNow && s.h3 >= L.perigo.h3WithTide) add(3, `${mm(s.h3)} em 3 horas com maré alta de ${tideNow.height} m às ${formatHour(tideNow.at)}: a água do canal não tem para onde escoar`);
+			if (tideNow && s.h3 >= L.perigo.h3WithTide) add(3, `${mm(s.h3)} em 3 horas com maré alta prevista de ${tideNow.height.toLocaleString('pt-BR')} m às ${formatHour(tideNow.at)}`, `${mm(s.h3)} em 3h e maré alta prevista.`);
 			else if (s.h3 >= L.alerta.h3) add(2, `Choveu ${mm(s.h3)} nas últimas 3 horas`);
 		}
 		if (f6 >= L.alerta.f6) add(2, `Previsão de ${mm(f6)} nas próximas 6 horas`);
@@ -78,7 +78,7 @@ export function assess({ hazard, now, station, forecast, tides, official }: Inpu
 		const L = LIMITS.deslizamento;
 		if (station) {
 			const s = station;
-			if (s.h72 >= L.perigo.h72) add(3, `Choveu ${mm(s.h72)} em 3 dias. O barro fica encharcado e a barreira pode descer.`);
+			if (s.h72 >= L.perigo.h72) add(3, `Choveu ${mm(s.h72)} em 3 dias no pluviômetro de referência`, `${mm(s.h72)} medidos em 3 dias.`);
 			else if (s.h72 >= L.alerta.h72) add(2, `Choveu ${mm(s.h72)} em 3 dias`);
 			else if (s.h72 >= L.alerta.h72WithForecast && f12 >= L.alerta.f12) add(2, `${mm(s.h72)} em 3 dias e mais ${mm(f12)} previstos`);
 			else if (s.h72 >= L.atencao.h72) add(1, `Choveu ${mm(s.h72)} em 3 dias`);

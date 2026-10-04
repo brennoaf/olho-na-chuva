@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { area as d3area, curveMonotoneX, line as d3line } from 'd3-shape';
-	import type { Hour } from '$lib/forecast';
+	import { coversForecast, type Hour } from '$lib/forecast';
 	import { LIMITS, type Hazard } from '$lib/risk';
 	import { heightAt, type Extreme } from '$lib/tide';
 	import { formatHour, HOUR } from '$lib/time';
@@ -27,6 +27,7 @@
 
 	const hours = $derived(Array.from({ length: SPAN }, (_, i) => forecast.find((h) => h.at === start + i * HOUR) ?? { at: start + i * HOUR, mm: 0, chance: 0 }));
 	const hasRain = $derived(hours.some((h) => h.mm >= 0.3));
+	const complete = $derived(coversForecast(forecast,now));
 	const bar = (mm: number) => Math.max(4, Math.min(RAIN_BASE - RAIN_TOP - 12, mm * 4));
 
 	const top = $derived(Math.max(2.6, ...tides.filter((t) => t.at >= start - 6 * HOUR && t.at <= end + 6 * HOUR).map((t) => t.height + 0.2)));
@@ -61,7 +62,7 @@
 
 	const summary = $derived(
 		[
-			hasRain ? `Chuva prevista, mais forte às ${formatHour(hours.reduce((a, b) => (b.mm > a.mm ? b : a)).at)}.` : 'Sem chuva prevista.',
+			!complete ? 'Previsão incompleta. Lacunas não significam ausência de chuva.' : hasRain ? `Chuva prevista, mais forte às ${formatHour(hours.reduce((a, b) => (b.mm > a.mm ? b : a)).at)}.` : 'Menos de 0,3 mm por hora nos dados exibidos.',
 			...marks.map((m) => `Maré ${m.high ? 'cheia' : 'baixa'} às ${formatHour(m.at)}, ${meters(m.height)}.`)
 		].join(' ')
 	);
@@ -111,7 +112,7 @@
 				{/if}
 			{/each}
 		{:else}
-			<text x={W / 2} y={(RAIN_TOP + RAIN_BASE) / 2 + 6} text-anchor="middle" font-size="13" font-weight="600" fill="var(--ink)" opacity="0.55">sem chuva prevista</text>
+			<text x={W / 2} y={(RAIN_TOP + RAIN_BASE) / 2 + 6} text-anchor="middle" font-size="13" font-weight="600" fill="var(--ink)">{complete ? 'menos de 0,3 mm por hora' : 'previsão incompleta'}</text>
 		{/if}
 		<line x1="0" x2={W} y1={RAIN_BASE} y2={RAIN_BASE} stroke="var(--ink)" stroke-width="1.5" opacity="0.5" />
 
@@ -139,10 +140,11 @@
 		{/if}
 	</svg>
 
+	{#if !complete}<p class="text-[0.88rem]">Faltam horas da previsão. Espaços sem barras não confirmam ausência de chuva.</p>{/if}
 	{#if showTide}
 		<p class="flex items-center gap-2 text-[0.88rem] font-semibold opacity-80">
 			<svg viewBox="0 0 24 6" class="h-1.5 w-6 shrink-0" aria-hidden="true"><line x1="0" x2="24" y1="3" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="2 4" /></svg>
-			Acima da linha pontilhada, a maré segura a água do canal.
+			A linha pontilhada marca 2 m na previsão de maré. Ela não mede o nível do canal.
 		</p>
 	{/if}
 </figure>

@@ -1,7 +1,11 @@
 <script lang="ts">
-	import { icons, ICON_VIEWBOX, type IconName } from './icons';
-
-	let { name, class: className = '' }: { name: IconName; class?: string } = $props();
+ import { icons, type IconName } from './icons';
+ import { siWhatsapp } from 'simple-icons';
+ let { name, class: className = '' }: { name: IconName; class?: string } = $props();
+ const Glyph = $derived(name === 'whatsapp' ? null : icons[name]);
 </script>
-
-<svg class={className} viewBox={ICON_VIEWBOX} aria-hidden="true" focusable="false">{@html icons[name]}</svg>
+{#if name === 'whatsapp'}
+ <svg class={`whatsapp-icon ${className}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d={siWhatsapp.path} /></svg>
+{:else if Glyph}
+ <Glyph class={className} stroke-width={2} aria-hidden="true" focusable="false" />
+{/if}

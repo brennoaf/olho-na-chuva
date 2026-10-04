@@ -8,7 +8,7 @@ import { HOUR, MINUTE } from './time';
 
 export type Route = 'inicio' | 'lugar' | 'preparar' | 'historico' | 'sobre';
 export type Toast = { text: string; tone: 'ok' | 'info' | 'erro'; id: number };
-type Snapshot = { stations: Station[]; forecast: Hour[]; tides: Extreme[]; alerts: Alert[]; fetchedAt: number };
+type Snapshot = { stations: Station[]; forecast: Hour[]; forecastAreaId?: string; tides: Extreme[]; alerts: Alert[]; fetchedAt: number; failed?: string[] };
 
 const KEYS = { area: 'olho-na-chuva:area', data: 'olho-na-chuva:dados', reports: 'olho-na-chuva:relatos' };
 const CITIES = ['Olinda', 'Paulista', 'Recife'];
@@ -33,7 +33,7 @@ function write(key: string, value: unknown): void {
 
 const ROUTES: Route[] = ['inicio', 'lugar', 'preparar', 'historico', 'sobre'];
 const parseRoute = (hash: string): Route => {
-	const name = hash.replace(/^#\/?/, '') as Route;
+ const name = hash.replace(/^#\/?/, '').split('?')[0] as Route;
 	return ROUTES.includes(name) ? name : 'inicio';
 };
 
@@ -51,6 +51,8 @@ class AppState {
 	#timer: ReturnType<typeof setTimeout> | undefined;
 
 	area = $derived<Area | null>(byId(this.areaId));
+	forecast = $derived(this.data?.forecastAreaId === this.areaId ? this.data?.forecast ?? [] : []);
+	activeAlerts = $derived((this.data?.alerts ?? []).filter(a => a.until === null || a.until > this.now));
 
 	station = $derived.by(() => {
 		const area = this.area;
@@ -62,18 +64,20 @@ class AppState {
 		const area = this.area;
 		const data = this.data;
 		if (!area || !data) return null;
-		return assess({ hazard: area.hazard, now: this.now, station: this.station?.station ?? null, forecast: data.forecast, tides: data.tides, official: worst(data.alerts) });
+		return assess({ hazard: area.hazard, now: this.now, station: this.station?.station ?? null, forecast: this.forecast, tides: data.tides, official: worst(this.activeAlerts) });
 	});
 
 	start(): () => void {
 		this.areaId = read<string | null>(KEYS.area, null);
 		this.data = read<Snapshot | null>(KEYS.data, null);
+		this.failed = this.data?.failed ?? [];
 		this.reports = read(KEYS.reports, []);
 		this.online = navigator.onLine;
 		this.route = parseRoute(location.hash);
 		if (!this.areaId && this.route === 'inicio') this.route = 'lugar';
 
 		const onHash = () => {
+			if (location.hash === '#conteudo') return;
 			this.route = parseRoute(location.hash);
 			scrollTo({ top: 0 });
 		};
@@ -118,12 +122,13 @@ class AppState {
 		const area = this.area ?? AREAS[0]!;
 		const now = Date.now();
 		const previous = this.data;
+		const signal = AbortSignal.timeout(12000);
 		const [stations, forecast, tides, apac, inmet] = await Promise.allSettled([
-			fetchStations(CITIES),
-			fetchForecast(area),
-			fetchTides(now - 12 * HOUR, now + 36 * HOUR),
-			fetchApacAlerts(),
-			fetchInmetAlerts('2609600')
+			fetchStations(CITIES, signal),
+			fetchForecast(area, signal),
+			fetchTides(now - 12 * HOUR, now + 36 * HOUR, signal),
+			fetchApacAlerts(signal),
+			fetchInmetAlerts('2609600', signal)
 		]);
 		const failed: string[] = [];
 		const pick = <T>(result: PromiseSettledResult<T>, fallback: T, label: string): T => {
@@ -131,18 +136,22 @@ class AppState {
 			failed.push(label);
 			return fallback;
 		};
-		const alerts = [...pick(apac, [], 'avisos da APAC'), ...pick(inmet, [], 'avisos do INMET')];
+		const savedAlerts = (source: Alert['source']) => (previous?.alerts ?? []).filter(a => a.source === source && (a.until === null || a.until > now));
+		const alerts = [...pick(apac, savedAlerts('APAC'), 'avisos da APAC'), ...pick(inmet, savedAlerts('INMET'), 'avisos do INMET')];
 		this.data = {
 			stations: pick(stations, previous?.stations ?? [], 'pluviômetros'),
-			forecast: pick(forecast, previous?.forecast ?? [], 'previsão'),
+			forecast: pick(forecast, previous?.forecastAreaId === area.id ? previous.forecast : [], 'previsão'),
+			forecastAreaId: area.id,
 			tides: pick(tides, previous?.tides ?? [], 'maré'),
 			alerts,
-			fetchedAt: failed.length === 5 ? (previous?.fetchedAt ?? now) : now
+			fetchedAt: failed.length === 5 ? (previous?.fetchedAt ?? now) : now,
+			failed
 		};
 		this.failed = failed;
 		this.now = Date.now();
 		this.loading = false;
 		write(KEYS.data, this.data);
+		if (this.areaId && this.areaId !== area.id) { void this.refresh(); return; }
 		if (manual) this.notify(failed.length ? `Atualizado, mas sem ${failed.join(', ')}.` : 'Dados atualizados agora.', failed.length ? 'info' : 'ok');
 	}
 
@@ -161,10 +170,17 @@ class AppState {
 		this.#timer = setTimeout(() => (this.toast = null), 4500);
 	}
 
-	addReport(note: string): void {
-		if (!this.area) return;
-		this.reports = [{ at: Date.now(), area: this.area.id, note }, ...this.reports].slice(0, 100);
-		write(KEYS.reports, this.reports);
+ addReport(note: string) {
+  if (!this.area) return;
+  const report = { at: Math.max(Date.now(), (this.reports[0]?.at ?? 0) + 1), area: this.area.id, note };
+  this.reports = [report, ...this.reports].slice(0, 100);
+  write(KEYS.reports, this.reports);
+  return report;
+ }
+
+ removeReport(at: number): void {
+  this.reports = this.reports.filter(report => report.at !== at);
+  write(KEYS.reports, this.reports);
 	}
 }
 

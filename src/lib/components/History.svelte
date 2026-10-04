@@ -2,94 +2,101 @@
 	import { app } from '$lib/app.svelte';
 	import Icon from '$lib/Icon.svelte';
 	import { formatDay, formatHour } from '$lib/time';
-	import Back from './Back.svelte';
+	import { tick } from 'svelte';
 
 	const area = $derived(app.area!);
-	const station = $derived(app.station?.station ?? null);
 	const mine = $derived(app.reports.filter((r) => r.area === area.id));
-	const since = $derived(area.events.at(-1)?.date.slice(0, 4));
 
 	const options = $derived(
-		area.hazard === 'inundacao' ? ['A água chegou na rua', 'A água entrou em casa', 'O canal transbordou'] : ['Apareceu rachadura na barreira', 'Desceu terra ou pedra', 'Casa atingida']
+		area.hazard === 'inundacao'
+			? [
+					{ label: 'A água chegou na rua', icon: 'wave' as const },
+					{ label: 'A água entrou em casa', icon: 'home' as const },
+					{ label: 'O canal transbordou', icon: 'rain' as const }
+				]
+			: [
+					{ label: 'Apareceu rachadura na barreira', icon: 'hill' as const },
+					{ label: 'Desceu terra ou pedra', icon: 'alert' as const },
+					{ label: 'Casa atingida', icon: 'home' as const }
+				]
 	);
 
 	let picking = $state(false);
+	let saved = $state<ReturnType<typeof app.addReport>>();
 
-	function report(note: string) {
-		app.addReport(note);
+	async function report(note: string) {
+		saved = app.addReport(note);
 		picking = false;
-		const when = `${formatDay(Date.now())}, às ${formatHour(Date.now())}`;
-		const text = [
-			`*${note}* aqui no ${area.name}, ${when}.`,
-			station ? `O pluviômetro ${station.name} marcou ${station.h1.toLocaleString('pt-BR')} mm na última hora e ${station.h24.toLocaleString('pt-BR')} mm em 24 horas.` : '',
-			'Registrei no Olho na Chuva para a gente ter o histórico da rua.'
-		]
-			.filter(Boolean)
-			.join('\n\n');
-		app.notify('Guardado neste celular. Agora mande para o grupo da rua.');
+		await tick();
+		const confirmation = document.getElementById('report-saved');
+		confirmation?.focus({ preventScroll: true });
+		confirmation?.scrollIntoView({ block: 'start' });
+	}
+
+	function shareReport(report: { note: string; at: number }) {
+		const text = `${area.name}: ${report.note}.\nRegistro de ${formatDay(report.at)}, às ${formatHour(report.at)}.\nFonte: relato de morador, sem verificação independente.`;
 		open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
 	}
 
-	const date = (iso: string) => {
-		const [y, m, d] = iso.split('-');
-		return `${d}/${m}/${y}`;
-	};
+	async function undoReport() {
+		if (!saved) return;
+		app.removeReport(saved.at);
+		saved = undefined;
+		app.notify('Registro desfeito.');
+		await tick();
+		document.getElementById('new-report')?.focus();
+	}
+
 </script>
 
-<div class="flex flex-col gap-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-10">
-	<Back />
-	<header class="flex flex-col gap-3">
-		<h1 class="display text-[clamp(3rem,15vw,4.2rem)]">Quando alagou</h1>
-		{#if area.events.length}
-			<p class="flex items-end gap-3">
-				<span class="display text-[4.5rem] leading-[0.8] tabular-nums">{area.events.length}</span>
-				<span class="pb-1 text-[1.1rem] leading-tight font-bold">vezes nas notícias<br />desde {since}</span>
-			</p>
-		{/if}
-		<p class="text-[1.05rem] leading-snug font-medium">Cada registro ajuda a acertar o alerta e a cobrar obra do poder público.</p>
+<div class="history-page">
+	<header class="history-intro">
+		<p class="eyebrow">{area.name}</p>
+		<h1 tabindex="-1">Registros</h1>
+		<p>Anote o que aconteceu na sua rua. Fica só neste celular.</p>
 	</header>
 
 	{#if picking}
-		<section class="rise flex flex-col gap-1 rounded-lg bg-(--ink) p-2 text-(--bg)">
-			<span class="px-3 pt-2 pb-1 font-bold">O que aconteceu?</span>
+		<section class="history-picker" aria-labelledby="report-question">
+			<div class="history-picker-heading"><Icon name="flag" class="h-6 w-6" /><h2 id="report-question">O que aconteceu?</h2><button aria-label="Cancelar" onclick={() => (picking = false)}><Icon name="close" class="h-5 w-5" /></button></div>
 			{#each options as option (option)}
-				<button class="press flex min-h-14 items-center justify-between rounded-md px-3 text-left text-[1.1rem] font-bold hover:bg-white/10" onclick={() => report(option)}>
-					{option}
-					<Icon name="arrow" class="h-5 w-5" />
+				<button class="history-option press" onclick={() => report(option.label)}>
+					<Icon name={option.icon} class="h-6 w-6" />
+					<span>{option.label}</span>
+					<Icon name="next" class="h-5 w-5" />
 				</button>
 			{/each}
-			<button class="press min-h-12 font-semibold opacity-80" onclick={() => (picking = false)}>Cancelar</button>
 		</section>
 	{:else}
-		<button class="press flex min-h-16 items-center justify-between rounded-lg bg-(--ink) px-5 text-(--bg)" onclick={() => (picking = true)}>
-			<span class="display text-[1.4rem]">{area.hazard === 'inundacao' ? 'Está alagando agora' : 'A barreira mexeu agora'}</span>
-			<Icon name="flag" class="h-6 w-6" />
+		<button id="new-report" class="history-new press" onclick={() => (picking = true)}>
+			<span class="history-new-icon"><Icon name="flag" class="h-6 w-6" /></span>
+			<strong>Fazer um registro</strong>
+			<Icon name="next" class="h-5 w-5" />
 		</button>
 	{/if}
 
-	{#if mine.length}
-		<section>
-			<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">Registrado por você</h2>
-			<ul>
-				{#each mine as r (r.at)}
-					<li class="hairline flex justify-between gap-3 border-t py-3"><b>{r.note}</b><span class="shrink-0 font-medium opacity-75">{formatDay(r.at)}, {formatHour(r.at)}</span></li>
+	{#if saved}
+		<section class="report-confirmation" aria-labelledby="report-saved">
+			<div class="report-confirmation-heading">
+				<span class="report-confirmation-icon"><Icon name="check" class="h-6 w-6" /></span>
+				<span><h2 id="report-saved" tabindex="-1">Salvo neste celular</h2><small>{saved.note}</small></span>
+			</div>
+			<div class="report-actions">
+				<button class="report-action" onclick={() => saved && shareReport(saved)}><Icon name="whatsapp" class="h-6 w-6" />Compartilhar no WhatsApp</button>
+				<button class="report-action" onclick={undoReport}><Icon name="undo" class="h-5 w-5" />Desfazer registro</button>
+			</div>
+		</section>
+	{/if}
+
+	{#if mine.some(r => r.at !== saved?.at)}
+		<section class="history-section">
+			<h2>Registrado por você</h2>
+			<ul class="personal-reports">
+				{#each mine.filter(r => r.at !== saved?.at) as r (r.at)}
+					<li><span><b>{r.note}</b><small>{formatDay(r.at)}, {formatHour(r.at)}</small></span><button class="report-share" aria-label={`Compartilhar registro: ${r.note}, ${formatDay(r.at)} às ${formatHour(r.at)}`} onclick={() => shareReport(r)}><Icon name="whatsapp" class="h-6 w-6" /></button></li>
 				{/each}
 			</ul>
 		</section>
 	{/if}
 
-	<section>
-		<h2 class="pb-2 text-[0.92rem] font-bold opacity-75">Nas notícias</h2>
-		<ol>
-			{#each area.events as event, i (event.date + event.url)}
-				<li class="hairline rise flex flex-col gap-1 border-t py-4" style="--i:{i}">
-					<span class="display text-[1.6rem] tabular-nums">{date(event.date)}</span>
-					<p class="font-medium">{event.text}</p>
-					<a class="self-start font-bold underline decoration-2 underline-offset-4" href={event.url} target="_blank" rel="noopener">Ler a notícia</a>
-				</li>
-			{:else}
-				<li class="hairline border-t py-4 font-medium opacity-75">Ainda não achamos notícias desta área. Registre quando acontecer.</li>
-			{/each}
-		</ol>
-	</section>
 </div>

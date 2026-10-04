@@ -16,7 +16,7 @@ type InmetRaw = { descricao: string; severidade: string; geocodes: string; risco
 
 export async function fetchApacAlerts(signal?: AbortSignal): Promise<Alert[]> {
 	const response = await fetch('https://api.apac.pe.gov.br/api.php/alertas', { signal });
-	if (!response.ok) return [];
+	if (!response.ok) throw new Error(`APAC avisos ${response.status}`);
 	const list = (await response.json()) as ApacRaw[];
 	const now = Date.now();
 	return list
@@ -37,7 +37,7 @@ export async function fetchApacAlerts(signal?: AbortSignal): Promise<Alert[]> {
 
 export async function fetchInmetAlerts(ibge: string, signal?: AbortSignal): Promise<Alert[]> {
 	const response = await fetch('https://apiprevmet3.inmet.gov.br/avisos/ativos', { signal });
-	if (!response.ok) return [];
+	if (!response.ok) throw new Error(`INMET avisos ${response.status}`);
 	const body = (await response.json()) as { hoje?: InmetRaw[]; futuro?: InmetRaw[] };
 	return [...(body.hoje ?? []), ...(body.futuro ?? [])]
 		.filter((a) => a.geocodes.split(',').map((g) => g.trim()).includes(ibge) && RAIN.test(a.descricao))

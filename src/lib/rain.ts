@@ -64,7 +64,7 @@ export function km(a: { lat: number; lon: number }, b: { lat: number; lon: numbe
 }
 
 export function nearest(stations: Station[], point: { lat: number; lon: number }, now: number, preferred: string[] = []): { station: Station; km: number } | null {
-	const fresh = stations.filter((s) => now - s.readAt <= STALE);
+	const fresh = stations.filter((s) => Number.isFinite(s.readAt) && s.readAt <= now + 60000 && now - s.readAt <= STALE);
 	for (const code of preferred) {
 		const hit = fresh.find((s) => s.code === code);
 		if (hit) return { station: hit, km: km(point, hit) };
