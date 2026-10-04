@@ -22,11 +22,11 @@
   { href: '#/historico', route: 'historico', label: 'Registros', icon: 'note' },
   { href: '#/sobre', route: 'sobre', label: 'Sobre', icon: 'info' }
  ] as const;
- onMount(() => { try { large = localStorage.getItem('olho-na-chuva:letra') === 'grande'; } catch { /* Optional storage. */ } });
+ onMount(() => { try { large = localStorage.getItem('olho-na-chuva:letra') === 'grande'; } catch {} });
  $effect(() => { document.documentElement.dataset.text = large ? 'large' : 'normal'; });
  function resizeText() {
   large = !large;
-  try { localStorage.setItem('olho-na-chuva:letra', large ? 'grande' : 'normal'); } catch { /* Optional storage. */ }
+  try { localStorage.setItem('olho-na-chuva:letra', large ? 'grande' : 'normal'); } catch {}
  }
 </script>
 <div class="app-shell" data-sky={app.sky} data-level={app.shellLevel ?? undefined}>

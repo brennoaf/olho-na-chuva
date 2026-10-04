@@ -30,7 +30,7 @@
 	let done = $state<string[]>(load());
 	function toggle(item: string) {
 		done = done.includes(item) ? done.filter((value) => value !== item) : [...done, item];
-		try { localStorage.setItem(KEY, JSON.stringify(done)); } catch { /* Continua funcionando sem armazenamento. */ }
+		try { localStorage.setItem(KEY, JSON.stringify(done)); } catch {}
 	}
 </script>
 
