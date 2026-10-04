@@ -173,7 +173,9 @@ class AppState {
 		const first = !this.areaId;
 		this.areaId = id;
 		write(KEYS.area, id);
-		location.hash = '#/';
+		this.route = 'inicio';
+		if (location.hash !== '#/') location.hash = '#/';
+		else dispatchEvent(new HashChangeEvent('hashchange'));
 		this.notify(first ? 'Pronto! Agora é só abrir o app quando chover.' : `Mostrando ${byId(id)?.name}.`);
 		void this.refresh();
 	}
