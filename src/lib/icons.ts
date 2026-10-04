@@ -31,6 +31,7 @@ import I30 from '@lucide/svelte/icons/arrow-up-right';
 import Weather from '@lucide/svelte/icons/cloud-sun';
 import Backpack from '@lucide/svelte/icons/backpack';
 import Undo from '@lucide/svelte/icons/rotate-ccw';
+import Search from '@lucide/svelte/icons/search';
 
 export const icons = {
  pin: I0,
@@ -65,6 +66,7 @@ export const icons = {
  bottle: I28,
  file: I29,
  arrow: I30,
- undo: Undo
+ undo: Undo,
+ search: Search
 } as const;
 export type IconName = keyof typeof icons | 'whatsapp';
