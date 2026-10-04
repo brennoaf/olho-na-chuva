@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { app } from '$lib/app.svelte';
 	import Icon from '$lib/Icon.svelte';
+	import PageIntro from './PageIntro.svelte';
 	import { formatDay, formatHour } from '$lib/time';
 	import { tick } from 'svelte';
 
@@ -50,14 +51,10 @@
 </script>
 
 <div class="history-page">
-	<header class="history-intro">
-		<p class="eyebrow">{area.name}</p>
-		<h1 tabindex="-1">Registros</h1>
-		<p>Anote o que aconteceu na sua rua. Fica só neste celular.</p>
-	</header>
+	<PageIntro context={area.name} title="Registros" description="Anote o que aconteceu na sua rua. Fica só neste celular." />
 
 	{#if picking}
-		<section class="history-picker" aria-labelledby="report-question">
+		<section class="history-picker glass-surface" aria-labelledby="report-question">
 			<div class="history-picker-heading"><Icon name="flag" class="h-6 w-6" /><h2 id="report-question">O que aconteceu?</h2><button aria-label="Cancelar" onclick={() => (picking = false)}><Icon name="close" class="h-5 w-5" /></button></div>
 			{#each options as option (option)}
 				<button class="history-option press" onclick={() => report(option.label)}>
@@ -68,7 +65,7 @@
 			{/each}
 		</section>
 	{:else}
-		<button id="new-report" class="history-new press" onclick={() => (picking = true)}>
+		<button id="new-report" class="history-new glass-surface press" onclick={() => (picking = true)}>
 			<span class="history-new-icon"><Icon name="flag" class="h-6 w-6" /></span>
 			<strong>Fazer um registro</strong>
 			<Icon name="next" class="h-5 w-5" />
@@ -76,7 +73,7 @@
 	{/if}
 
 	{#if saved}
-		<section class="report-confirmation" aria-labelledby="report-saved">
+		<section class="report-confirmation glass-surface" aria-labelledby="report-saved">
 			<div class="report-confirmation-heading">
 				<span class="report-confirmation-icon"><Icon name="check" class="h-6 w-6" /></span>
 				<span><h2 id="report-saved" tabindex="-1">Salvo neste celular</h2><small>{saved.note}</small></span>

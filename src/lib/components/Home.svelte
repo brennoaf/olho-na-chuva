@@ -3,7 +3,6 @@
  import { worst } from '$lib/alerts';
  import { SHELTERS } from '$lib/areas';
  import Icon from '$lib/Icon.svelte';
- import { coversForecast, forecastSky } from '$lib/forecast';
  import { km } from '$lib/rain';
  import { canSpeak, speak, stopSpeaking } from '$lib/speech';
  import { formatAgo } from '$lib/time';
@@ -16,11 +15,10 @@
  const data = $derived(app.data);
  const station = $derived(app.station);
  const forecast = $derived(app.forecast);
- const risk = $derived(a?.risk ?? 0);
- const stale = $derived(data ? app.now - data.fetchedAt > 30 * 60000 : true);
- const incomplete = $derived(!station || !coversForecast(forecast,app.now) || (area.hazard === 'inundacao' && !data?.tides.some(t => t.at > app.now)) || app.failed.length > 0);
- const uncertain = $derived(risk === 0 && (stale || incomplete));
- const sky = $derived(uncertain || risk > 0 ? 'unknown' : forecastSky(forecast, app.now));
+ const risk = $derived(app.risk);
+ const stale = $derived(app.stale);
+ const incomplete = $derived(app.incomplete);
+ const uncertain = $derived(app.uncertain);
  const message = $derived(advice(area.hazard,a ?? {risk:0,reasons:[],window:null,blind:true},{stale,incomplete},station?.station ?? null));
  const shelter = $derived(SHELTERS.map(s => ({ ...s, km: km(area, s) })).sort((p, q) => p.km - q.km)[0]!);
  const route = $derived('https://www.google.com/maps/dir/?api=1&destination=' + shelter.lat + ',' + shelter.lon + '&travelmode=walking');
@@ -53,7 +51,7 @@
  onDestroy(stopSpeaking);
 </script>
 
-<div class="home-view" data-sky={sky}>
+<div class="home-view">
  <h1 class="sr-only" tabindex="-1">{area.name}</h1>
  {#if !a || !data}
   <section class="loading-panel" aria-live="polite">

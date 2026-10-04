@@ -1,14 +1,12 @@
 <script lang="ts">
 	import Icon from '$lib/Icon.svelte';
+	import PageIntro from './PageIntro.svelte';
 </script>
 
 <div class="about-page">
-	<header class="about-intro">
-		<h1 tabindex="-1">Sobre</h1>
-		<p>O Olho na Chuva reúne dados públicos para mostrar a situação da sua área e orientar cuidados.</p>
-	</header>
+	<PageIntro context="Olho na Chuva" title="Sobre" description="Dados públicos para mostrar a situação da sua área e orientar cuidados." />
 
-	<section class="about-overview" aria-label="Como o aplicativo ajuda">
+	<section class="about-overview glass-surface" aria-label="Como o aplicativo ajuda">
 		<div class="about-item">
 			<Icon name="weather" class="h-7 w-7" />
 			<span><h2>Informação rápida</h2><p>Chuva medida, previsão, maré e avisos oficiais.</p></span>
@@ -19,12 +17,12 @@
 		</div>
 	</section>
 
-	<section class="about-privacy">
+	<section class="about-privacy glass-surface glass-subtle">
 		<Icon name="note" class="h-7 w-7" />
 		<span><h2>Seus dados ficam no celular</h2><p>Sem cadastro ou login. Compartilhar no WhatsApp é uma escolha sua.</p></span>
 	</section>
 
-	<details class="about-disclosure">
+	<details class="about-disclosure glass-surface glass-subtle">
 		<summary><span><Icon name="rain" class="h-6 w-6" />Fontes dos dados</span><Icon name="next" class="h-5 w-5" /></summary>
 		<div class="about-disclosure-content">
 			<p><b>APAC:</b> chuva medida e avisos.</p>
@@ -34,7 +32,7 @@
 		</div>
 	</details>
 
-	<details class="about-disclosure">
+	<details class="about-disclosure glass-surface glass-subtle">
 		<summary><span><Icon name="home" class="h-6 w-6" />Instalar no celular</span><Icon name="next" class="h-5 w-5" /></summary>
 		<div class="about-disclosure-content">
 			<h2>Android</h2>

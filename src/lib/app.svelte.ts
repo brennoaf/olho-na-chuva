@@ -1,6 +1,6 @@
 import { fetchApacAlerts, fetchInmetAlerts, worst, type Alert } from './alerts';
 import { AREAS, byId, type Area } from './areas';
-import { fetchForecast, type Hour } from './forecast';
+import { coversForecast, fetchForecast, forecastSky, type Hour } from './forecast';
 import { fetchStations, nearest, type Station } from './rain';
 import { assess, type Assessment } from './risk';
 import { fetchTides, type Extreme } from './tide';
@@ -66,6 +66,20 @@ class AppState {
 		if (!area || !data) return null;
 		return assess({ hazard: area.hazard, now: this.now, station: this.station?.station ?? null, forecast: this.forecast, tides: data.tides, official: worst(this.activeAlerts) });
 	});
+
+	risk = $derived(this.assessment?.risk ?? 0);
+	stale = $derived(this.data ? this.now - this.data.fetchedAt > 30 * MINUTE : true);
+	incomplete = $derived.by(() => {
+		const area = this.area;
+		if (!area || !this.data) return true;
+		return !this.station
+			|| !coversForecast(this.forecast, this.now)
+			|| (area.hazard === 'inundacao' && !this.data.tides.some((tide) => tide.at > this.now))
+			|| this.failed.length > 0;
+	});
+	uncertain = $derived(Boolean(this.area && this.data && this.risk === 0 && (this.stale || this.incomplete)));
+	sky = $derived(!this.area || !this.data ? 'day-clear' : this.uncertain || this.risk > 0 ? 'unknown' : forecastSky(this.forecast, this.now));
+	shellLevel = $derived<0 | 1 | 2 | 3 | 'unknown' | null>(!this.area || !this.data ? null : this.uncertain ? 'unknown' : this.risk);
 
 	start(): () => void {
 		this.areaId = read<string | null>(KEYS.area, null);

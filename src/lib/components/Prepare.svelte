@@ -2,6 +2,7 @@
 	import { app } from '$lib/app.svelte';
 	import { CONTACTS } from '$lib/areas';
 	import Icon from '$lib/Icon.svelte';
+	import PageIntro from './PageIntro.svelte';
 
 	const KEY = 'olho-na-chuva:preparo';
 	const area = $derived(app.area);
@@ -49,13 +50,9 @@
 {/snippet}
 
 <div class="prepare-page">
-	<header class="prepare-intro">
-		<p class="eyebrow">{area?.name}</p>
-		<h1 tabindex="-1">Se preparar</h1>
-		<p>Deixe o essencial pronto. Comece pelos quatro primeiros itens.</p>
-	</header>
+	<PageIntro context={area?.name ?? 'Olho na Chuva'} title="Se preparar" description="Deixe o essencial pronto. Comece pelos quatro primeiros itens." />
 
-	<details class="urgent-help" open={risk >= 2}>
+	<details class="urgent-help glass-surface" open={risk >= 2}>
 		<summary><span><Icon name="alert" class="h-6 w-6" />{risk >= 2 ? 'O que fazer agora' : 'Perigo agora? Veja o que fazer'}</span><Icon name="next" class="h-5 w-5" /></summary>
 		<div class="urgent-content">
 			{#if area?.hazard === 'deslizamento'}

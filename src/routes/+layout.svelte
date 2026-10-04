@@ -29,7 +29,7 @@
   try { localStorage.setItem('olho-na-chuva:letra', large ? 'grande' : 'normal'); } catch { /* Optional storage. */ }
  }
 </script>
-<div class="app-shell">
+<div class="app-shell" data-sky={app.sky} data-level={app.shellLevel ?? undefined}>
 <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 <header class="site-header">
  <div class="header-inner">
@@ -55,7 +55,7 @@
   <AreaPicker compact onchoose={() => areaDialog.close()} />
  {/if}
 </dialog>
-<main id="conteudo" tabindex="-1" class:reading-page={app.route !== 'inicio' && app.route !== 'lugar'}>
+<main id="conteudo" tabindex="-1">
  {@render children()}
 </main>
 <footer class="site-footer"><span>Dados públicos · Sem cadastro</span></footer>
