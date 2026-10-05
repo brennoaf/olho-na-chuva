@@ -95,17 +95,23 @@ export function neighborMessage(area: Area, a: Assessment, station: Station | nu
     : `chuva ${peak.mm >= 8 ? 'forte' : peak.mm >= 3 ? 'moderada' : 'fraca'} prevista ${shareMoment(peak.at, now)}`;
  const current = limited && a.risk === 0 ? 'não foi possível confirmar a situação' : message.title.toLocaleLowerCase('pt-BR');
  const currentDetail = a.risk === 0 && !limited && station ? rain : current;
- return [
-  `*Olho na Chuva | ${area.name}*`,
-  `*Agora:* ${currentDetail}.`,
+ const statusIcon = a.risk === 3 ? '🚨' : a.risk > 0 || limited ? '⚠️' : '✅';
+ const header = [`🌧️ *Olho na Chuva*`, `📍 ${area.name}`].join('\n');
+ const situation = [
+  `${statusIcon} *Agora:* ${currentDetail}.`,
   a.risk > 0 && message.notice ? message.notice : '',
   a.risk > 0 ? message.instruction : '',
-  a.risk > 0 || limited ? `*Chuva medida:* ${rain}.` : '',
-  `*Próximas 12h:* ${prediction}.`,
-  area.hazard === 'inundacao' ? high ? `*Maré alta:* ${shareNumber(high.height)} m ${shareMoment(high.at, now)}.` : '*Maré:* previsão indisponível.' : '',
-  `${status.stale ? 'Dados salvos' : 'Atualizado'} ${shareUpdate(status.fetchedAt, now)}.`,
-  a.risk >= 2 ? '*Defesa Civil:* 0800 081 0060.' : ''
+  a.risk > 0 || limited ? `🌧️ *Chuva medida:* ${rain}.` : ''
  ].filter(Boolean).join('\n');
+ const outlook = [
+  `☔ *Próximas 12h:* ${prediction}.`,
+  area.hazard === 'inundacao' ? high ? `🌊 *Maré alta:* ${shareNumber(high.height)} m ${shareMoment(high.at, now)}.` : '🌊 *Maré:* previsão indisponível.' : ''
+ ].filter(Boolean).join('\n');
+ const footer = [
+  `🕒 ${status.stale ? 'Dados salvos' : 'Atualizado'} ${shareUpdate(status.fetchedAt, now)}.`,
+  a.risk >= 2 ? '📞 *Defesa Civil:* 0800 081 0060.' : ''
+ ].filter(Boolean).join('\n');
+ return [header, situation, outlook, footer].filter(Boolean).join('\n\n');
 }
 export type Row = { label: string; detail: string; value: string };
 
