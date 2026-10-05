@@ -19,37 +19,7 @@ const themes: Record<Risk | 'unknown', Theme> = {
 
 const number = (value: number) => value.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 
-function rounded(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-	const r = Math.min(radius, width / 2, height / 2);
-	ctx.beginPath();
-	ctx.moveTo(x + r, y);
-	ctx.arcTo(x + width, y, x + width, y + height, r);
-	ctx.arcTo(x + width, y + height, x, y + height, r);
-	ctx.arcTo(x, y + height, x, y, r);
-	ctx.arcTo(x, y, x + width, y, r);
-	ctx.closePath();
-}
-
-function glass(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius = 46) {
-	ctx.save();
-	ctx.shadowColor = 'rgba(31, 55, 72, .16)';
-	ctx.shadowBlur = 42;
-	ctx.shadowOffsetY = 18;
-	rounded(ctx, x, y, width, height, radius);
-	const fill = ctx.createLinearGradient(x, y, x + width, y + height);
-	fill.addColorStop(0, 'rgba(255,255,255,.70)');
-	fill.addColorStop(.52, 'rgba(255,255,255,.38)');
-	fill.addColorStop(1, 'rgba(255,255,255,.24)');
-	ctx.fillStyle = fill;
-	ctx.fill();
-	ctx.shadowColor = 'transparent';
-	ctx.strokeStyle = 'rgba(255,255,255,.82)';
-	ctx.lineWidth = 2;
-	ctx.stroke();
-	ctx.restore();
-}
-
-function cloud(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, color: string) {
+function cloud(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, color: string, raining = true) {
 	ctx.save();
 	ctx.strokeStyle = color;
 	ctx.lineWidth = 5 * scale;
@@ -60,12 +30,15 @@ function cloud(ctx: CanvasRenderingContext2D, x: number, y: number, scale: numbe
 	ctx.bezierCurveTo(x - 3 * scale, y + 29 * scale, x - 4 * scale, y + 12 * scale, x + 10 * scale, y + 10 * scale);
 	ctx.bezierCurveTo(x + 15 * scale, y - 5 * scale, x + 38 * scale, y - 4 * scale, x + 44 * scale, y + 11 * scale);
 	ctx.bezierCurveTo(x + 60 * scale, y + 8 * scale, x + 67 * scale, y + 30 * scale, x + 51 * scale, y + 31 * scale);
+	ctx.closePath();
 	ctx.stroke();
-	for (const offset of [16, 31, 46]) {
-		ctx.beginPath();
-		ctx.moveTo(x + offset * scale, y + 41 * scale);
-		ctx.lineTo(x + (offset - 3) * scale, y + 52 * scale);
-		ctx.stroke();
+	if (raining) {
+		for (const offset of [16, 31, 46]) {
+			ctx.beginPath();
+			ctx.moveTo(x + offset * scale, y + 41 * scale);
+			ctx.lineTo(x + (offset - 3) * scale, y + 52 * scale);
+			ctx.stroke();
+		}
 	}
 	ctx.restore();
 }
@@ -113,23 +86,6 @@ function wrapped(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
 	return y + Math.min(result.length, maxLines) * lineHeight;
 }
 
-function metric(ctx: CanvasRenderingContext2D, item: Metric, x: number, y: number, width: number, theme: Theme) {
-	ctx.fillStyle = theme.muted;
-	ctx.font = '600 22px "Archivo Variable", Arial, sans-serif';
-	ctx.fillText(item.label.toLocaleUpperCase('pt-BR'), x, y);
-	ctx.fillStyle = theme.ink;
-	ctx.font = '650 50px "Archivo Variable", Arial, sans-serif';
-	let fontSize = 50;
-	while (ctx.measureText(item.value).width > width && fontSize > 34) {
-		fontSize -= 2;
-		ctx.font = `650 ${fontSize}px "Archivo Variable", Arial, sans-serif`;
-	}
-	ctx.fillText(item.value, x, y + 50);
-	ctx.fillStyle = theme.muted;
-	ctx.font = '450 23px "Archivo Variable", Arial, sans-serif';
-	for (const [index, line] of lines(ctx, item.detail, width).slice(0, 2).entries()) ctx.fillText(line, x, y + 120 + index * 31);
-}
-
 function toFile(canvas: HTMLCanvasElement, name: string) {
 	const data = canvas.toDataURL('image/png').split(',')[1] ?? '';
 	const binary = atob(data);
@@ -141,7 +97,7 @@ function toFile(canvas: HTMLCanvasElement, name: string) {
 export function createShareImage(area: Area, assessment: Assessment, station: Station | null, tides: Extreme[], forecast: Hour[], now: number, status: ShareStatus) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1080;
-	canvas.height = 1350;
+	canvas.height = 1080;
 	const ctx = canvas.getContext('2d');
 	if (!ctx) throw new Error('Imagem indisponível');
 	const limited = status.stale || status.incomplete;
@@ -155,95 +111,109 @@ export function createShareImage(area: Area, assessment: Assessment, station: St
 	const third: Metric = area.hazard === 'inundacao'
 		? { label: 'Maré alta', value: high ? `${number(high.height)} m` : 'Sem dado', detail: high ? `${relativeDay(high.at, now)} às ${formatHour(high.at)}` : 'previsão indisponível' }
 		: { label: 'Últimos 3 dias', value: station ? `${number(station.h72)} mm` : 'Sem dado', detail: 'chuva acumulada' };
-	const metrics: Metric[] = [
-		{ label: 'Chuva agora', value: station ? `${number(station.h1)} mm` : 'Sem dado', detail: station ? `leitura das ${formatHour(station.readAt)}` : 'medição indisponível' },
-		{ label: 'Previsão', value: forecastValue, detail: forecastDetail },
-		third
-	];
 
 	const background = ctx.createLinearGradient(0, 0, 0, canvas.height);
 	background.addColorStop(0, theme.top);
-	background.addColorStop(.48, theme.middle);
+	background.addColorStop(.7, theme.middle);
 	background.addColorStop(1, theme.bottom);
 	ctx.fillStyle = background;
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-	ctx.fillStyle = 'rgba(255,255,255,.22)';
+	ctx.fillStyle = 'rgba(255,255,255,.2)';
 	ctx.beginPath();
-	ctx.moveTo(0, 40);
-	ctx.bezierCurveTo(280, 180, 690, -20, 1080, 150);
+	ctx.moveTo(0, 20);
+	ctx.bezierCurveTo(320, 180, 700, -30, 1080, 150);
 	ctx.lineTo(1080, 0);
 	ctx.lineTo(0, 0);
 	ctx.fill();
-	ctx.fillStyle = 'rgba(255,255,255,.16)';
+	ctx.strokeStyle = 'rgba(255,255,255,.3)';
+	ctx.lineWidth = 3;
+	for (let index = 0; index < 4; index += 1) {
+		ctx.beginPath();
+		ctx.moveTo(660 + index * 68, 115);
+		ctx.bezierCurveTo(770 + index * 45, 250, 760 + index * 58, 430, 950 + index * 62, 610);
+		ctx.stroke();
+	}
+	ctx.fillStyle = 'rgba(255,255,255,.12)';
 	ctx.beginPath();
-	ctx.moveTo(0, 1040);
-	ctx.bezierCurveTo(330, 900, 680, 1170, 1080, 980);
-	ctx.lineTo(1080, 1350);
-	ctx.lineTo(0, 1350);
+	ctx.moveTo(0, 590);
+	ctx.bezierCurveTo(300, 500, 590, 690, 1080, 520);
+	ctx.lineTo(1080, 760);
+	ctx.lineTo(0, 760);
 	ctx.fill();
 
 	ctx.textBaseline = 'top';
-	cloud(ctx, 70, 66, .8, theme.ink);
+	cloud(ctx, 64, 55, .72, theme.ink);
 	ctx.fillStyle = theme.ink;
-	ctx.font = '650 32px "Archivo Variable", Arial, sans-serif';
-	ctx.fillText('olho na chuva', 136, 79);
+	ctx.font = '650 29px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText('olho na chuva', 122, 67);
 	ctx.textAlign = 'right';
 	ctx.fillStyle = theme.muted;
-	ctx.font = '500 23px "Archivo Variable", Arial, sans-serif';
-	ctx.fillText(`${status.stale ? 'DADOS SALVOS' : 'ATUALIZADO'} ÀS ${formatHour(status.fetchedAt)}`, 1006, 84);
+	ctx.font = '550 21px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText(`${status.stale ? 'DADOS SALVOS' : 'ATUALIZADO'} ÀS ${formatHour(status.fetchedAt)}`, 1010, 72);
 	ctx.textAlign = 'left';
 
-	glass(ctx, 62, 176, 956, 402);
-	pin(ctx, 95, 222, theme.accent);
+	pin(ctx, 78, 151, theme.accent);
 	ctx.fillStyle = theme.accent;
-	ctx.font = '600 24px "Archivo Variable", Arial, sans-serif';
-	ctx.fillText(area.name.toLocaleUpperCase('pt-BR'), 127, 211);
+	ctx.font = '650 25px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText(area.name.toLocaleUpperCase('pt-BR'), 110, 140);
+
+	ctx.fillStyle = theme.ink;
+	ctx.font = '650 218px "Archivo Variable", Arial, sans-serif';
+	const rainValue = station ? number(station.h1) : '?';
+	ctx.fillText(rainValue, 62, 215);
+	const rainWidth = ctx.measureText(rainValue).width;
+	ctx.font = '600 52px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText('mm', 74 + rainWidth, 354);
 	ctx.fillStyle = theme.muted;
 	ctx.font = '600 22px "Archivo Variable", Arial, sans-serif';
-	ctx.fillText('SITUAÇÃO AGORA', 94, 276);
+	ctx.fillText('CHUVA NA ÚLTIMA HORA', 72, 450);
+	ctx.font = '450 24px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText(station ? `leitura das ${formatHour(station.readAt)}` : 'medição indisponível', 72, 487);
+	cloud(ctx, 762, 246, 3.15, 'rgba(255,255,255,.72)', Boolean(station?.h1 || assessment.risk > 0));
+
 	ctx.fillStyle = theme.ink;
 	const title = limited && assessment.risk === 0 ? 'Dados incompletos' : message.title;
-	const titleEnd = wrapped(ctx, title, 92, 316, 860, 86, 86, 2);
-	const supporting = assessment.risk > 0 || limited ? message.instruction : 'Confira a chuva, a previsão e a maré antes de sair.';
-	ctx.fillStyle = theme.muted;
-	ctx.font = '450 29px "Archivo Variable", Arial, sans-serif';
-	for (const [index, line] of lines(ctx, supporting, 850).slice(0, 2).entries()) ctx.fillText(line, 94, titleEnd + 16 + index * 39);
-
-	glass(ctx, 62, 616, 956, 286);
-	const columnWidth = 258;
-	for (const [index, item] of metrics.entries()) {
-		const x = 98 + index * 310;
-		metric(ctx, item, x, 670, columnWidth, theme);
-		if (index < 2) {
-			ctx.strokeStyle = 'rgba(32,54,69,.16)';
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.moveTo(x + 278, 666);
-			ctx.lineTo(x + 278, 848);
-			ctx.stroke();
-		}
-	}
-
-	if (assessment.risk >= 2) {
-		glass(ctx, 62, 940, 956, 166, 38);
-		ctx.fillStyle = theme.accent;
-		ctx.font = '650 26px "Archivo Variable", Arial, sans-serif';
-		ctx.fillText('PRECISA DE AJUDA?', 98, 982);
-		ctx.fillStyle = theme.ink;
-		ctx.font = '600 37px "Archivo Variable", Arial, sans-serif';
-		ctx.fillText('Defesa Civil  0800 081 0060', 98, 1029);
+	const titleEnd = wrapped(ctx, title, 70, 550, 900, 66, 68, 2);
+	if (assessment.risk > 0 || limited) {
+		ctx.fillStyle = theme.muted;
+		ctx.font = '450 27px "Archivo Variable", Arial, sans-serif';
+		for (const [index, line] of lines(ctx, message.instruction, 880).slice(0, 2).entries()) ctx.fillText(line, 72, titleEnd + 8 + index * 34);
 	}
 
 	ctx.fillStyle = theme.ink;
-	ctx.font = '650 28px "Archivo Variable", Arial, sans-serif';
-	ctx.fillText('Olinda, Pernambuco', 72, 1216);
-	ctx.fillStyle = theme.muted;
-	ctx.font = '450 22px "Archivo Variable", Arial, sans-serif';
-	ctx.fillText('Dados públicos. Em emergência, siga a Defesa Civil.', 72, 1260);
+	ctx.beginPath();
+	ctx.moveTo(0, 770);
+	ctx.bezierCurveTo(300, 725, 735, 800, 1080, 748);
+	ctx.lineTo(1080, 1080);
+	ctx.lineTo(0, 1080);
+	ctx.closePath();
+	ctx.fill();
+
+	ctx.fillStyle = 'rgba(255,255,255,.58)';
+	ctx.font = '600 20px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText('PRÓXIMAS 12 HORAS', 72, 812);
+	ctx.fillText(third.label.toLocaleUpperCase('pt-BR'), 570, 812);
+	ctx.fillStyle = '#ffffff';
+	ctx.font = '650 54px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText(forecastValue, 72, 850);
+	ctx.fillText(third.value, 570, 850);
+	ctx.fillStyle = 'rgba(255,255,255,.7)';
+	ctx.font = '450 25px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText(forecastDetail, 72, 918);
+	ctx.fillText(third.detail, 570, 918);
+	ctx.strokeStyle = 'rgba(255,255,255,.2)';
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(520, 808);
+	ctx.lineTo(520, 946);
+	ctx.stroke();
+
+	ctx.fillStyle = 'rgba(255,255,255,.68)';
+	ctx.font = '500 20px "Archivo Variable", Arial, sans-serif';
+	ctx.fillText(assessment.risk >= 2 ? 'DEFESA CIVIL  0800 081 0060' : 'OLINDA, PERNAMBUCO', 72, 1018);
 	ctx.textAlign = 'right';
-	ctx.font = '600 22px "Archivo Variable", Arial, sans-serif';
-	ctx.fillText('OLHONACHUVA', 1008, 1259);
+	ctx.fillText('DADOS PÚBLICOS', 1008, 1018);
 	ctx.textAlign = 'left';
 
 	return toFile(canvas, `olho-na-chuva-${area.id}.png`);
