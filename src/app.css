@@ -103,6 +103,14 @@ html:has(.area-sheet[open]) { overflow:hidden; }
 .status-panel[data-level='3'] h2 { color:#7d1e1c; font-size:2.6rem; max-width:12ch; }
 .status-panel[data-level='unknown'] h2 { font-size:2.7rem; }
 .status-instruction { font-size:1.05rem; line-height:1.5; max-width:30ch; }
+.status-forecast { display:grid; grid-template-columns:30px minmax(0,1fr); align-items:start; gap:11px; max-width:32rem; margin-top:18px; padding:15px 0; border-top:1px solid rgba(23,32,44,.2); border-bottom:1px solid rgba(23,32,44,.2); }
+.status-forecast>span,.status-forecast small,.status-forecast strong,.status-forecast>span>span { display:block; }
+.status-forecast small { color:var(--muted); font-size:.7rem; line-height:1.25; }
+.status-forecast strong { margin-top:2px; font-size:1rem; font-weight:680; letter-spacing:-.025em; line-height:1.3; }
+.status-forecast>span>span { margin-top:3px; color:var(--muted); font-size:.78rem; line-height:1.35; }
+.status-forecast[data-tone='moderate']>svg { color:#8b4a13; }
+.status-forecast[data-tone='strong']>svg { color:#8b211f; }
+.status-forecast[data-tone='unknown']>svg { color:#596775; }
 .data-notice { font-size:.88rem; font-weight:650; margin-bottom:12px; }
 .status-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:16px; }
 .status-panel[data-level='3'] .button-primary { background:#7d1e1c; color:#fff; }
@@ -119,7 +127,7 @@ html:has(.area-sheet[open]) { overflow:hidden; }
 .weather-summary>div { min-width:0; display:flex; flex-direction:column; }
 .weather-summary p { font-size:.74rem; text-transform:capitalize; color:var(--muted); }
 .weather-summary p svg { display:none; }
-.weather-summary strong { font-size:1.15rem; line-height:1.3; font-weight:650; letter-spacing:-.04em; text-transform:capitalize; margin:7px 0 4px; }
+.weather-summary strong { font-size:1.15rem; line-height:1.3; font-weight:650; letter-spacing:-.04em; margin:7px 0 4px; }
 .weather-summary span { font-size:.74rem; color:var(--muted); line-height:1.45; }
 .section-heading { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:5px; margin-bottom:14px; }
 .section-heading h2 { font-size:1.14rem; font-weight:650; letter-spacing:-.04em; }
@@ -267,6 +275,20 @@ html[data-text='large'] .status-panel[data-level='3'] h2 { font-size:2rem; }
 .numbers + .numbers { margin-top:0; border-top:0; }
 .forecast-details .weather-summary { border-top:0; margin-bottom:22px; }
 .forecast-details .day-section { padding-bottom:12px; }
+.forecast-summary>span>span,.forecast-summary b,.forecast-summary small { display:block; }
+.forecast-summary b { font-size:.9rem; font-weight:650; }
+.forecast-summary small { margin-top:2px; color:var(--muted); font-size:.7rem; font-weight:450; }
+.forecast-focus { display:grid; grid-template-columns:48px minmax(0,1fr); align-items:start; gap:13px; margin:6px 0 18px; padding:18px; overflow:clip; border:1px solid rgba(255,255,255,.24); border-radius:20px; background:linear-gradient(145deg,#16364b,#2d6683); color:#fff; box-shadow:0 15px 34px rgba(22,54,75,.2),inset 0 1px 0 rgba(255,255,255,.2); }
+.forecast-focus[data-tone='moderate'] { background:linear-gradient(145deg,#6d3818,#a65d25); }
+.forecast-focus[data-tone='strong'] { background:linear-gradient(145deg,#611f1e,#983431); }
+.forecast-focus[data-tone='unknown'] { background:linear-gradient(145deg,#40505f,#687785); }
+.forecast-focus-icon { display:grid; place-items:center; width:48px; height:48px; border:1px solid rgba(255,255,255,.22); border-radius:14px; background:rgba(255,255,255,.1); }
+.forecast-focus p { color:rgba(255,255,255,.72); font-size:.7rem; }
+.forecast-focus h2 { margin:3px 0 5px; font-size:1.42rem; font-weight:650; letter-spacing:-.04em; line-height:1.12; }
+.forecast-focus div>span { color:rgba(255,255,255,.82); font-size:.8rem; }
+.forecast-secondary { grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; }
+.forecast-secondary>div { padding-right:16px; }
+.forecast-secondary>div+div { padding-left:20px; border-left:1px solid var(--line); }
 .numbers summary { min-height:62px; }
 .explanation { margin-bottom:18px; }
 .app-shell:has(.home-view) .site-footer { display:none; }

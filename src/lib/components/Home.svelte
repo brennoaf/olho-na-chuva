@@ -2,11 +2,12 @@
  import { app } from '$lib/app.svelte';
  import { worst } from '$lib/alerts';
  import { SHELTERS } from '$lib/areas';
+ import { coversForecast } from '$lib/forecast';
  import Icon from '$lib/Icon.svelte';
  import { km } from '$lib/rain';
  import { createShareImage } from '$lib/share-image';
  import { canSpeak, speak, stopSpeaking } from '$lib/speech';
- import { formatAgo } from '$lib/time';
+ import { formatAgo, formatHour, HOUR, relativeDay } from '$lib/time';
  import { advice, moments, neighborMessage, rows, spoken } from '$lib/words';
  import { onDestroy } from 'svelte';
  import Timeline from './Timeline.svelte';
@@ -24,6 +25,20 @@
  const shelter = $derived(SHELTERS.map(s => ({ ...s, km: km(area, s) })).sort((p, q) => p.km - q.km)[0]!);
  const route = $derived('https://www.google.com/maps/dir/?api=1&destination=' + shelter.lat + ',' + shelter.lon + '&travelmode=walking');
  const day = $derived(data && a ? moments(area.hazard, station?.station ?? null, forecast, data.tides, a.window, app.now) : []);
+ const forecastLead = $derived.by(() => {
+  const next = forecast.filter(hour => hour.at >= app.now && hour.at < app.now + 12 * HOUR);
+  const peak = next.reduce<(typeof next)[number] | null>((best, hour) => !best || hour.mm > best.mm ? hour : best, null);
+  if (!peak) return { title: 'Previsão indisponível', detail: 'Tente atualizar mais tarde', tone: 'unknown' };
+  if (!coversForecast(forecast, app.now)) return { title: 'Previsão incompleta', detail: 'Faltam horários das próximas 12 horas', tone: 'unknown' };
+  const dayName = relativeDay(peak.at, app.now);
+  const when = dayName === 'hoje' ? `por volta das ${formatHour(peak.at)}` : `${dayName}, por volta das ${formatHour(peak.at)}`;
+  const amount = peak.mm.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  if (peak.mm === 0) return { title: 'Sem chuva prevista', detail: 'Nas próximas 12 horas', tone: 'clear' };
+  if (peak.mm < 1) return { title: 'Pouca chuva prevista', detail: `Até ${amount} mm por hora ${when}`, tone: 'light' };
+  if (peak.mm < 3) return { title: 'Chuva fraca prevista', detail: `Até ${amount} mm por hora ${when}`, tone: 'light' };
+  if (peak.mm < 8) return { title: 'Chuva moderada prevista', detail: `Mais forte ${when}`, tone: 'moderate' };
+  return { title: 'Chuva forte prevista', detail: `Mais forte ${when}`, tone: 'strong' };
+ });
  const table = $derived.by(() => {
   if (!data) return { list: [], source: '' };
   const result = rows(area, station, data.tides, forecast, worst(app.activeAlerts), app.now, t => formatAgo(t, app.now));
@@ -33,7 +48,7 @@
   }
   return result;
  });
- const summary = $derived(table.list.filter(r => ['chuva medida', area.hazard === 'inundacao' ? 'maré' : 'últimos 3 dias', 'previsão'].includes(r.label)));
+ const summary = $derived(table.list.filter(r => ['chuva medida', area.hazard === 'inundacao' ? 'maré' : 'últimos 3 dias'].includes(r.label)));
  let speaking = $state(false);
  let sharingImage = $state(false);
  let shareDialog: HTMLDialogElement;
@@ -107,6 +122,10 @@
     <h2 id="level-title">{message.title}</h2>
     {#if risk > 0 && message.reason}<p class="status-reason">{message.reason}</p>{/if}
     <p class="status-instruction">{message.instruction}</p>
+    <div class="status-forecast" data-tone={forecastLead.tone}>
+     <Icon name="weather" class="h-7 w-7" />
+     <span><small>Próximas 12 horas</small><strong>{forecastLead.title}</strong><span>{forecastLead.detail}</span></span>
+    </div>
     <div class="status-actions">
      {#if risk === 2}<a class="button button-primary" href="#/preparar?kit"><Icon name="shield" class="h-5 w-5" />Ver o que separar</a>{/if}
      {#if canSpeak()}<button class="button button-listen" onclick={listen} aria-pressed={speaking}><Icon name={speaking ? 'stop' : 'volume'} class="h-5 w-5" />{speaking ? 'Parar leitura' : 'Ouvir aviso'}</button>{/if}
@@ -125,14 +144,18 @@
   {/snippet}
   {@render actions()}
   <details class="numbers forecast-details">
-   <summary><span><Icon name="weather" class="h-6 w-6" />Ver previsão</span><Icon name="next" class="h-4 w-4" /></summary>
-   <section class="weather-summary" aria-label="Resumo da chuva e da maré">
+   <summary class="forecast-summary"><span><Icon name="weather" class="h-6 w-6" /><span><b>Previsão e horários</b><small>{forecastLead.title}</small></span></span><Icon name="next" class="h-4 w-4" /></summary>
+   <section class="forecast-focus" data-tone={forecastLead.tone} aria-labelledby="forecast-focus-title">
+    <span class="forecast-focus-icon"><Icon name="rain" class="h-8 w-8" /></span>
+    <div><p>Próximas 12 horas</p><h2 id="forecast-focus-title">{forecastLead.title}</h2><span>{forecastLead.detail}</span></div>
+   </section>
+   <section class="weather-summary forecast-secondary" aria-label="Chuva medida e maré">
    {#each summary as row}
     <div><p><Icon name={row.label === 'maré' ? 'wave' : row.label === 'últimos 3 dias' ? 'hill' : 'rain'} class="h-5 w-5" />{row.label}</p><strong>{row.value}</strong><span>{row.detail}</span></div>
    {/each}
   </section>
     <section class="day-section" aria-labelledby="day-heading">
-     <div class="section-heading"><h2 id="day-heading">Daqui a pouco, por aqui</h2><span>Próximas 12 horas</span></div>
+     <div class="section-heading"><h2 id="day-heading">Agora e próximas horas</h2></div>
      <ol class="day-list">
       {#each day as moment}
        <li class:important={moment.strong}><span class="moment-time">{moment.when}</span><span class="moment-icon"><Icon name={moment.icon} class="h-5 w-5" /></span><p>{moment.text}</p></li>

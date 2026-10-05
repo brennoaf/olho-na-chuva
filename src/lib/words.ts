@@ -184,6 +184,7 @@ export function moments(hazard: Hazard, station: Station | null, forecast: Hour[
 	if (first && !raining) list.push({ at: first.at, when: formatHour(first.at), text: 'Pode começar a chover', icon: 'rain', strong: false });
 	const strongNow = !!station && station.h1 >= 5;
 	if (peak && peak.mm >= 3 && peak.at !== first?.at && !(strongNow && peak.at - now < 3 * HOUR)) list.push({ at: peak.at, when: formatHour(peak.at), text: peak.mm >= 8 ? 'Chuva forte' : 'Chuva moderada', icon: 'rain', strong: peak.mm >= 8 });
+	if (peak && peak.mm > 0 && peak.mm < 1) list.push({ at: peak.at, when: formatHour(peak.at), text: 'Chuva leve prevista', icon: 'rain', strong: false });
 
 	if (hazard === 'inundacao') {
 		for (const t of tides.filter((t) => t.high && t.at > now && t.at < now + 12 * HOUR)) {
