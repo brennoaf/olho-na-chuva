@@ -71,10 +71,9 @@ export function spoken(area: Area, a: Assessment, station: Station | null, tides
 
 export type ShareStatus = DataQuality & { fetchedAt: number };
 
-const shareDate = (at: number) => new Intl.DateTimeFormat('pt-BR', {
- timeZone: 'America/Recife', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-}).format(at);
 const shareNumber = (value: number) => value.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+const shareMoment = (at: number, now: number) => `${relativeDay(at, now)} às ${formatHour(at)}`;
+const shareUpdate = (at: number, now: number) => relativeDay(at, now) === 'hoje' ? `às ${formatHour(at)}` : shareMoment(at, now);
 
 export function neighborMessage(area: Area, a: Assessment, station: Station | null, tides: Extreme[], forecast: Hour[], now: number, status: ShareStatus): string {
  const limited = status.stale || status.incomplete;
@@ -83,23 +82,29 @@ export function neighborMessage(area: Area, a: Assessment, station: Station | nu
  const peak = upcoming.reduce<Hour | null>((best, h) => !best || h.mm > best.mm ? h : best, null);
  const high = tides.find(t => t.high && t.at >= now);
  const rain = station
-  ? `O pluviômetro de ${station.name} registrou ${shareNumber(station.h1)} mm na última hora e ${shareNumber(area.hazard === 'deslizamento' ? station.h72 : station.h24)} mm ${area.hazard === 'deslizamento' ? 'nos últimos 3 dias' : 'nas últimas 24 horas'} (leitura de ${shareDate(station.readAt)}).`
-  : 'Não há medição de chuva disponível.';
- const prediction = !coversForecast(forecast,now) && peak ? 'A previsão está incompleta para as próximas 12 horas.' : peak
-  ? `Nas próximas 12 horas, a previsão disponível indica até ${shareNumber(peak.mm)} mm em uma hora${peak.mm > 0 ? `, em ${shareDate(peak.at)}` : ''}.`
-  : 'A previsão para as próximas 12 horas está indisponível.';
+  ? station.h1 === 0
+   ? `sem chuva medida, leitura das ${formatHour(station.readAt)}`
+   : `${shareNumber(station.h1)} mm na última hora, leitura das ${formatHour(station.readAt)}`
+  : 'medição indisponível';
+ const prediction = !coversForecast(forecast,now)
+  ? 'previsão incompleta'
+ : !peak
+   ? 'previsão indisponível'
+   : peak.mm < 1
+    ? 'pouca chuva prevista'
+    : `chuva ${peak.mm >= 8 ? 'forte' : peak.mm >= 3 ? 'moderada' : 'fraca'} prevista ${shareMoment(peak.at, now)}`;
+ const current = limited && a.risk === 0 ? 'não foi possível confirmar a situação' : message.title.toLocaleLowerCase('pt-BR');
+ const currentDetail = a.risk === 0 && !limited && station ? rain : current;
  return [
-  `Olho na Chuva: ${area.name}`,
-  `Consulta: ${shareDate(status.fetchedAt)} (horário de Recife).`,
-  a.risk > 0 || status.stale && status.incomplete ? message.notice : '',
-  `${limited && a.risk > 0 ? 'Última orientação disponível' : 'Situação'}: ${message.title}.`,
-  message.instruction,
-  rain,
-  prediction,
-  'Fontes: APAC (chuva medida e avisos), INMET (avisos) e Open-Meteo (previsão).',
-  area.hazard === 'inundacao' ? high ? `Maré alta prevista: ${shareNumber(high.height)} m em ${shareDate(high.at)}.` : 'Maré: previsão indisponível.' : '',
-  area.hazard === 'inundacao' ? 'Maré: tábua do Porto do Recife, publicada pela Prefeitura do Recife.' : '',
-  a.risk >= 2 || limited ? 'Defesa Civil de Olinda: 0800 081 0060.' : ''
+  `*Olho na Chuva | ${area.name}*`,
+  `*Agora:* ${currentDetail}.`,
+  a.risk > 0 && message.notice ? message.notice : '',
+  a.risk > 0 ? message.instruction : '',
+  a.risk > 0 || limited ? `*Chuva medida:* ${rain}.` : '',
+  `*Próximas 12h:* ${prediction}.`,
+  area.hazard === 'inundacao' ? high ? `*Maré alta:* ${shareNumber(high.height)} m ${shareMoment(high.at, now)}.` : '*Maré:* previsão indisponível.' : '',
+  `${status.stale ? 'Dados salvos' : 'Atualizado'} ${shareUpdate(status.fetchedAt, now)}.`,
+  a.risk >= 2 ? '*Defesa Civil:* 0800 081 0060.' : ''
  ].filter(Boolean).join('\n');
 }
 export type Row = { label: string; detail: string; value: string };
