@@ -272,6 +272,19 @@ html[data-text='large'] .status-panel[data-level='3'] h2 { font-size:2rem; }
 .app-shell:has(.home-view) .site-footer { display:none; }
 .home-view { padding-bottom:calc(6rem + env(safe-area-inset-bottom)); }
 .whatsapp-icon { color:#147c46; }
+.share-sheet { background:linear-gradient(180deg,rgba(247,249,250,.98),#fbfbf9); }
+.share-sheet::backdrop { background:rgba(23,32,44,.48); backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px); }
+.share-options { display:grid; gap:10px; padding:4px 0 8px; }
+.share-option { display:grid; grid-template-columns:52px minmax(0,1fr) 22px; align-items:center; gap:13px; width:100%; min-height:76px; padding:11px 14px; border:1px solid rgba(255,255,255,.82); border-radius:18px; background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(229,239,246,.58)); box-shadow:0 12px 28px rgba(28,57,78,.1),inset 0 1px 0 #fff; text-align:left; }
+.share-option:hover { background:rgba(255,255,255,.9); }
+.share-option>span:nth-child(2) { min-width:0; }
+.share-option strong,.share-option small { display:block; }
+.share-option strong { font-size:.94rem; font-weight:650; letter-spacing:-.02em; }
+.share-option small { margin-top:3px; color:var(--muted); font-size:.72rem; line-height:1.35; }
+.share-option-icon { display:grid; place-items:center; width:52px; height:52px; border-radius:15px; }
+.share-option-icon.whatsapp { background:#e0f4e8; }
+.share-option-icon.image { background:linear-gradient(145deg,#9bc9e9,#d7e7f1 55%,#f3d69a); color:#17384d; }
+.share-option>svg:last-child { color:var(--muted); }
 .status-reason { font-size:.9rem; line-height:1.4; margin:-6px 0 12px; color:var(--muted); }
 .report-confirmation { padding:16px; }
 .report-confirmation-heading { display:grid; grid-template-columns:40px minmax(0,1fr); align-items:center; gap:12px; }

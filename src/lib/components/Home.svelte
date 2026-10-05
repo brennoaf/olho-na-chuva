@@ -4,6 +4,7 @@
  import { SHELTERS } from '$lib/areas';
  import Icon from '$lib/Icon.svelte';
  import { km } from '$lib/rain';
+ import { createShareImage } from '$lib/share-image';
  import { canSpeak, speak, stopSpeaking } from '$lib/speech';
  import { formatAgo } from '$lib/time';
  import { advice, moments, neighborMessage, rows, spoken } from '$lib/words';
@@ -34,6 +35,8 @@
  });
  const summary = $derived(table.list.filter(r => ['chuva medida', area.hazard === 'inundacao' ? 'maré' : 'últimos 3 dias', 'previsão'].includes(r.label)));
  let speaking = $state(false);
+ let sharingImage = $state(false);
+ let shareDialog: HTMLDialogElement;
  function listen() {
   if (!a || !data) return;
   if (speaking) { stopSpeaking(); speaking = false; return; }
@@ -41,12 +44,48 @@
   const text = spoken(area, a, station?.station ?? null, data.tides, forecast, app.now, {stale,incomplete});
   speak(text, () => speaking = false);
  }
+ function openShare() {
+  shareDialog.showModal();
+  shareDialog.querySelector<HTMLElement>('#share-title')?.focus();
+ }
  function shareWithPeople() {
   if (!a || !data) return;
   const message = neighborMessage(area, a, station?.station ?? null, data.tides, forecast, app.now, {
    fetchedAt: data.fetchedAt, stale, incomplete
   });
+  shareDialog.close();
   open('https://wa.me/?text=' + encodeURIComponent(message.trim()), '_blank', 'noopener');
+ }
+ async function shareAsImage() {
+  if (!a || !data || sharingImage) return;
+  sharingImage = true;
+  try {
+   const file = createShareImage(area, a, station?.station ?? null, data.tides, forecast, app.now, {
+    fetchedAt: data.fetchedAt, stale, incomplete
+   });
+   const payload: ShareData = { files: [file], title: `Olho na Chuva | ${area.name}` };
+   if (typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare(payload))) {
+    const sharing = navigator.share(payload);
+    shareDialog.close();
+    await sharing;
+   } else {
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    shareDialog.close();
+    app.notify('Imagem salva. Compartilhe pela sua galeria.');
+   }
+  } catch (error) {
+   if (!(error instanceof DOMException && error.name === 'AbortError')) app.notify('Não foi possível compartilhar a imagem.', 'erro');
+  } finally {
+   sharingImage = false;
+  }
+ }
+ function closeShareBackdrop(event: MouseEvent) {
+  if (event.target === shareDialog) shareDialog.close();
  }
  onDestroy(stopSpeaking);
 </script>
@@ -81,7 +120,7 @@
   {#snippet actions()}
   <div class="quick-actions" class:secondary={risk !== 3}>
    <a href="tel:08000810060" aria-label="Ligar para a Defesa Civil"><Icon name="phone" class="h-6 w-6" /><span>Pedir ajuda</span></a>
-   <button onclick={shareWithPeople} aria-label="Compartilhar aviso no WhatsApp"><Icon name="whatsapp" class="h-7 w-7" /><span>Compartilhar no WhatsApp</span></button>
+   <button onclick={openShare} aria-haspopup="dialog" aria-label="Compartilhar situação"><Icon name="share" class="h-6 w-6" /><span>Compartilhar</span></button>
   </div>
   {/snippet}
   {@render actions()}
@@ -117,3 +156,19 @@
     </details>
  {/if}
 </div>
+
+<dialog bind:this={shareDialog} class="area-sheet share-sheet" aria-labelledby="share-title" onclick={closeShareBackdrop} onclose={() => sharingImage = false}>
+ <div class="sheet-heading"><h2 id="share-title" tabindex="-1">Compartilhar</h2><button onclick={() => shareDialog.close()} aria-label="Fechar compartilhamento"><Icon name="close" class="h-6 w-6" /></button></div>
+ <div class="share-options">
+  <button class="share-option" onclick={shareWithPeople}>
+   <span class="share-option-icon whatsapp"><Icon name="whatsapp" class="h-7 w-7" /></span>
+   <span><strong>Mensagem no WhatsApp</strong><small>Texto curto e direto</small></span>
+   <Icon name="next" class="h-5 w-5" />
+  </button>
+  <button class="share-option" onclick={shareAsImage} disabled={sharingImage} aria-busy={sharingImage}>
+   <span class="share-option-icon image"><Icon name="image" class="h-7 w-7" /></span>
+   <span><strong>{sharingImage ? 'Criando imagem' : 'Imagem para compartilhar'}</strong><small>Instagram, WhatsApp e outros apps</small></span>
+   <Icon name="next" class="h-5 w-5" />
+  </button>
+ </div>
+</dialog>
